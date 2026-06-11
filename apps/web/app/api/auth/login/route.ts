@@ -16,12 +16,21 @@ import {
 
 const WINDOW_MS = 15 * 60_000;
 const MAX_ATTEMPTS = 10;
+const MAX_TRACKED_IPS = 10_000;
 const attempts = new Map<string, { count: number; resetAt: number }>();
 
 function tooManyAttempts(ip: string): boolean {
   const now = Date.now();
   const entry = attempts.get(ip);
   if (!entry || entry.resetAt <= now) {
+    // Bound the map: a spoofed-IP flood must not grow memory forever. Expired
+    // entries go first; if the cap is still hit, fail closed for new IPs.
+    if (!entry && attempts.size >= MAX_TRACKED_IPS) {
+      for (const [key, value] of attempts) {
+        if (value.resetAt <= now) attempts.delete(key);
+      }
+      if (attempts.size >= MAX_TRACKED_IPS) return true;
+    }
     attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
     return false;
   }
@@ -29,13 +38,22 @@ function tooManyAttempts(ip: string): boolean {
   return entry.count > MAX_ATTEMPTS;
 }
 
+/** Platform-set client IP first (x-real-ip); the first x-forwarded-for hop
+ *  is client-spoofable and only acceptable as a fallback. */
+function clientIp(request: Request): string {
+  return (
+    request.headers.get('x-real-ip')?.trim() ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'local'
+  );
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   if (!authEnabled()) {
     return NextResponse.json({ disabled: true });
   }
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
-  if (tooManyAttempts(ip)) {
+  if (tooManyAttempts(clientIp(request))) {
     return NextResponse.json({ error: 'too_many_attempts' }, { status: 429 });
   }
 

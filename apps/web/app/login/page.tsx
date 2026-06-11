@@ -28,7 +28,10 @@ function LoginForm() {
         return;
       }
       const next = searchParams.get('next');
-      router.push(next && next.startsWith('/') ? next : '/');
+      // Same-origin paths only: browsers treat //host and /\host as
+      // cross-origin URLs, so a bare startsWith('/') is an open redirect.
+      const safeNext = next && /^\/(?![/\\])/.test(next) ? next : '/';
+      router.push(safeNext);
       router.refresh();
       return;
     }
