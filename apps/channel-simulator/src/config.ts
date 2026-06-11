@@ -35,5 +35,16 @@ export const config = {
   port: parsed.data.SIMULATOR_PORT ?? parsed.data.PORT ?? 4100,
   hmacSecret: parsed.data.WEBHOOK_HMAC_SECRET,
   adminKey: parsed.data.SIMULATOR_ADMIN_KEY,
-  callbackAllowlist: parsed.data.CALLBACK_ALLOWLIST.split(',').map((origin) => origin.trim()),
+  callbackAllowlist: parsed.data.CALLBACK_ALLOWLIST.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map(normalizeOrigin),
 };
+
+function normalizeOrigin(value: string): string {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value.replace(/\/$/, '');
+  }
+}
