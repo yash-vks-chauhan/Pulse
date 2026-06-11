@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment — secrets never enter the repo
+.env
+.env.*
+!.env.example
+
+# Test & coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Prisma
+apps/crm-api/prisma/*.db
