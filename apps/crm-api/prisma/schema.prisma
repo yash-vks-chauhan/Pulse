@@ -131,8 +131,11 @@ model Communication {
   // Mirrors STATUS_RANK in @pulse/shared — state only ever moves to a higher rank.
   statusRank            Int                 @default(0) @map("status_rank")
   attempt               Int                 @default(0)
-  // Links a failover retry to the communication it escalated from.
-  parentCommunicationId String?             @map("parent_communication_id")
+  // Links a failover retry to the communication it escalated from. UNIQUE so
+  // concurrent failover sweeps can never create two children for one parent.
+  parentCommunicationId String?             @unique @map("parent_communication_id")
+  failoverParent        Communication?      @relation("Failover", fields: [parentCommunicationId], references: [id])
+  failoverChild         Communication?      @relation("Failover")
   vendorMessageId       String?             @map("vendor_message_id")
   failureReason         String?             @map("failure_reason")
   sentAt                DateTime?           @map("sent_at")

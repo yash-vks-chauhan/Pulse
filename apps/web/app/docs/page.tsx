@@ -104,9 +104,64 @@ export default function DocsPage() {
 
         <Endpoint
           method="POST"
+          path="/api/ai/segment"
+          auth="x-api-key"
+          description="Natural language → Segment DSL via LLM structured output. The model can only emit the whitelisted DSL; the result is zod-validated (one corrective retry) before it reaches you. Rate-limited to 10/min."
+        >
+          <CodeBlock>{`curl -X POST ${CRM}/api/ai/segment \\
+  -H 'content-type: application/json' \\
+  -H 'x-api-key: $PULSE_API_KEY' \\
+  -d '{ "prompt": "shoppers who bought 2+ times but nothing in 60 days, spend above ₹2,000" }'
+
+# → { "dsl": { "logic": "AND", "conditions": [...] }, "explanation": "..." }`}</CodeBlock>
+        </Endpoint>
+
+        <Endpoint
+          method="POST"
+          path="/api/ai/draft"
+          auth="x-api-key"
+          description="Draft 1-3 channel-appropriate message variants for a campaign objective. Variants may only use the {{name}} and {{city}} merge tags and are length-capped per channel. Rate-limited to 10/min."
+        >
+          <CodeBlock>{`curl -X POST ${CRM}/api/ai/draft \\
+  -H 'content-type: application/json' \\
+  -H 'x-api-key: $PULSE_API_KEY' \\
+  -d '{ "objective": "Win back lapsed buyers with 15% off, code BREW15", "channel": "whatsapp" }'`}</CodeBlock>
+        </Endpoint>
+
+        <Endpoint
+          method="POST"
+          path="/api/segments"
+          auth="x-api-key"
+          description="Save a segment (validated DSL). Also: GET /api/segments to list, GET /api/segments/:id to fetch one."
+        >
+          <CodeBlock>{`curl -X POST ${CRM}/api/segments \\
+  -H 'content-type: application/json' \\
+  -H 'x-api-key: $PULSE_API_KEY' \\
+  -d '{
+    "name": "Lapsed big spenders",
+    "dsl": {
+      "logic": "AND",
+      "conditions": [
+        { "field": "order_count", "op": "gte", "value": 2 },
+        { "field": "last_order_at", "op": "older_than_days", "value": 60 },
+        { "field": "total_spend", "op": "gt", "value": 2000 }
+      ]
+    }
+  }'`}</CodeBlock>
+        </Endpoint>
+
+        <Endpoint
+          method="POST"
+          path="/api/segments/preview"
+          auth="x-api-key"
+          description="Stateless audience preview for a DSL document: matching count plus a small non-PII sample (encrypted email/phone are never decrypted for previews)."
+        />
+
+        <Endpoint
+          method="POST"
           path="/api/campaigns"
           auth="x-api-key"
-          description="Create a draft campaign with a message template ({{name}}, {{city}} merge tags), a channel policy, and raw audience filters (the Segment DSL arrives in Phase 2)."
+          description="Create a draft campaign with a message template ({{name}}, {{city}} merge tags), a channel policy with ordered failover, and either a saved segment_id or raw audience filters."
         >
           <CodeBlock>{`curl -X POST ${CRM}/api/campaigns \\
   -H 'content-type: application/json' \\
@@ -114,8 +169,8 @@ export default function DocsPage() {
   -d '{
     "name": "Win-back June",
     "message_template": "Hi {{name}}, we miss you! 20% off your next brew ☕",
-    "channel_policy": { "primary": "whatsapp", "failover": ["sms"] },
-    "audience": { "min_order_count": 2, "limit": 1000 }
+    "channel_policy": { "primary": "whatsapp", "failover": ["sms"], "failoverWindowMinutes": 5 },
+    "segment_id": "<uuid from POST /api/segments>"
   }'`}</CodeBlock>
         </Endpoint>
 
@@ -130,7 +185,7 @@ export default function DocsPage() {
           method="GET"
           path="/api/campaigns/:id/stats"
           auth="x-api-key"
-          description="Live funnel derived from the append-only event log: queued → sent → delivered → engaged → clicked, plus failure counts and raw event totals."
+          description="Live funnel derived from the append-only event log: queued → sent → delivered → engaged → clicked, plus failure counts, raw event totals, and failover savings (escalations / rescued)."
         />
 
         <Endpoint

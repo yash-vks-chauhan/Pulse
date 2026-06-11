@@ -47,5 +47,40 @@ tradeoff is stated in ARCHITECTURE.md.)
 
 ---
 
-*(Next entries: Phase 2 — NL → Segment DSL prompts, validation-retry loop,
-message drafting; screenshots of rejected AI output.)*
+## 2026-06-11 — Phase 2: AI layer, segments, failover (Claude Code)
+
+**Delegated:** the `segments/` module (DSL→Prisma compiler + preview), the
+`ai/` module (NL→DSL and message drafting via Anthropic structured outputs),
+campaign-from-segment launch, the failover sweep worker, and the copilot /
+campaigns / segments frontend with its fixed-path server proxy.
+
+**Directed decisions (mine, not the AI's):**
+- **Double validation on LLM output.** Structured outputs constrain the
+  response server-side at Anthropic, *and* we still re-parse with our own zod
+  schema (which carries range limits JSON Schema can't express) — one
+  corrective retry with the issues fed back verbatim, then an honest 422.
+- **Escalate SENT/FAILED only, never QUEUED.** A QUEUED communication is
+  still inside our own dispatch pipeline (throttle backoff); escalating it
+  would risk a double send. If dispatch gives up it becomes FAILED and the
+  next sweep catches it.
+- **`parent_communication_id` is UNIQUE.** Failover idempotency is enforced
+  by the database, not by application logic — a crashed or concurrently
+  retried sweep physically cannot create two children for one parent.
+- **`older_than_days` on `last_order_at` includes never-ordered customers.**
+  "Nothing in 60 days" semantically covers someone who never bought; a naive
+  `lt cutoff` filter silently drops NULLs.
+
+**Rejected:** a generic catch-all web proxy (`/api/crm/[...path]`) that
+forwards any path to the CRM API. Convenient, but it would let the browser
+steer requests anywhere the API key reaches. Replaced with one explicit route
+per endpoint over a shared helper — fixed upstream string literals, UUID
+params format-checked, JSON-only size-capped bodies.
+
+**Containment over trust for prompt injection:** rather than trying to make
+the prompt injection-proof, the design caps the blast radius — the model can
+only emit schema-bound artifacts, those artifacts are previewed and approved
+by a human, and the LLM never sees PII or touches the DB.
+
+---
+
+*(Next entries: Phase 3 — insights narrative, attribution, auth, chaos panel.)*

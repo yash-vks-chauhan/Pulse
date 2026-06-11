@@ -42,9 +42,14 @@ segments, campaigns, and insights arrive in Phases 2–3.
 apps/web/
 ├── app/
 │   ├── page.tsx                   # Overview + live service health
+│   ├── copilot/page.tsx           # NL → segment → drafts → channel plan → launch (Phase 2)
+│   ├── segments/page.tsx          # Saved segments with rule chips
+│   ├── campaigns/page.tsx         # Campaign list
+│   ├── campaigns/[id]/page.tsx    # Live funnel, failover savings (3s polling)
 │   ├── data/page.tsx              # CSV upload for customers/orders (batched, validated)
 │   ├── docs/page.tsx              # In-app API docs with curl examples
-│   ├── api/ingest/route.ts        # Server-side proxy — the API key never reaches the browser
+│   ├── api/_lib/proxy.ts          # Fixed-path server proxy — key never reaches the browser
+│   ├── api/{ingest,segments,campaigns,ai}/  # Same-origin proxy routes to the CRM API
 │   └── layout.tsx                 # Dashboard shell
 ├── next.config.mjs                # Security headers (CSP, HSTS, frame-deny, …)
 └── package.json
@@ -61,8 +66,15 @@ apps/crm-api/
 │   ├── ingest/                    # POST /api/ingest/{customers,orders} — zod-validated, idempotent upserts
 │   ├── receipts/                  # POST /api/receipts — HMAC-verified, idempotent, rank-based state machine
 │   │   └── receipts.logic.ts      #   pure planning step (unit-tested ordering/dedupe rules)
-│   ├── campaigns/                 # Create, launch (audience snapshot → queue), stats-on-read
+│   ├── segments/                  # Segment DSL → parameterized Prisma query, preview, CRUD
+│   │   └── dsl.compiler.ts        #   the ONLY path from a DSL document to the DB (unit-tested)
+│   ├── ai/                        # NL→DSL + message drafting (Anthropic structured outputs)
+│   │   ├── ai.logic.ts            #   prompts + validate/retry rules, pure & unit-tested
+│   │   └── ai.service.ts          #   the only file that talks to an LLM; 503s when unconfigured
+│   ├── campaigns/                 # Create, launch (segment or raw audience → queue), stats-on-read
 │   ├── worker/                    # BullMQ dispatch: batching, throttle backoff, retries, DLQ
+│   │   ├── failover.logic.ts      #   escalation rules (pure, unit-tested)
+│   │   └── failover.worker.ts     #   delayed sweeps → linked child comms on the next channel
 │   ├── health/                    # GET /healthz with dependency checks
 │   ├── common/                    # ApiKeyGuard, HmacGuard, ZodValidationPipe, PiiCrypto (AES-256-GCM)
 │   ├── config.ts                  # zod-validated env — fails fast on missing secrets
@@ -75,8 +87,8 @@ apps/crm-api/
 └── package.json
 ```
 
-Planned Phase 2 modules (seams already in place): `segments/` (+ `dsl/`
-compiler), `ai/` (LLM structured outputs), `insights/`.
+Planned Phase 3 module (seam already in place): `insights/` (funnel
+narrative + next-action recommendation).
 
 ## `apps/channel-simulator` — Channel Simulator (Express + TypeScript)
 
@@ -131,6 +143,9 @@ packages/shared/
 |---|---|
 | The receipt idempotency + ordering logic | `apps/crm-api/src/receipts/` (pure logic + tests) |
 | The end-to-end loop proven under chaos | `apps/crm-api/test/integration/campaign-loop.ts` |
+| "The LLM never touches the DB" made concrete | `packages/shared/src/segment-dsl.ts` → `apps/crm-api/src/segments/dsl.compiler.ts` |
+| The AI layer (structured outputs, validate + retry, containment) | `apps/crm-api/src/ai/` (pure logic + tests) |
+| Channel failover escalation | `apps/crm-api/src/worker/failover.{logic,worker}.ts` |
 | The security model | `docs/SECURITY.md`, `packages/shared/src/security.ts` |
 | PII encryption at rest | `apps/crm-api/src/common/pii-crypto.ts` |
 | How realistic the vendor simulation is | `apps/channel-simulator/src/channels.ts` |

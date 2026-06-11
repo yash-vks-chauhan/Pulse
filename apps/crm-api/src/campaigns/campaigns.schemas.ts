@@ -27,6 +27,8 @@ export const createCampaignSchema = z.object({
   /** Merge tags: {{name}}, {{city}}. Rendered per customer at launch. */
   message_template: z.string().min(1).max(2000),
   channel_policy: channelPolicySchema,
+  /** Target a saved segment (Phase 2). Wins over `audience` when present. */
+  segment_id: z.string().uuid().optional(),
   audience: audienceSchema.default({}),
 });
 export type CreateCampaign = z.infer<typeof createCampaignSchema>;

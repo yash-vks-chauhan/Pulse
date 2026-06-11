@@ -36,6 +36,19 @@ const envSchema = z.object({
     }, 'PII_ENCRYPTION_KEY must be base64-encoded 32 bytes (generate with: npm run secrets)'),
   /** HMAC key for PII blind indexes. */
   PII_HASH_KEY: z.string().min(32, 'PII_HASH_KEY must be at least 32 chars'),
+  /** Anthropic API key for the AI layer. Optional: without it the AI
+   *  endpoints return 503 and everything else keeps working. An empty
+   *  string (the .env template default) counts as "not configured". */
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => (value ? value : undefined))
+    .refine(
+      (value) => value === undefined || value.length >= 10,
+      'ANTHROPIC_API_KEY must be at least 10 chars when set',
+    ),
+  /** Claude model for NL→DSL and message drafting. */
+  AI_MODEL: z.string().min(1).default('claude-opus-4-8'),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -60,4 +73,6 @@ export const config = {
   hmacSecret: parsed.data.WEBHOOK_HMAC_SECRET,
   piiEncryptionKey: parsed.data.PII_ENCRYPTION_KEY,
   piiHashKey: parsed.data.PII_HASH_KEY,
+  anthropicApiKey: parsed.data.ANTHROPIC_API_KEY,
+  aiModel: parsed.data.AI_MODEL,
 };

@@ -1,9 +1,11 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { COMMUNICATION_STATUSES, STATUS_RANK } from '@pulse/shared';
+import { COMMUNICATION_STATUSES, STATUS_RANK, segmentDslSchema } from '@pulse/shared';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { compileSegmentDsl } from '../segments/dsl.compiler';
 import { DispatchQueueService } from '../worker/dispatch-queue.service';
+import { FailoverQueueService } from '../worker/failover-queue.service';
 import type { Audience, ChannelPolicy, CreateCampaign } from './campaigns.schemas';
 
 const DISPATCH_BATCH_SIZE = 50;
@@ -16,15 +18,21 @@ export class CampaignsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dispatchQueue: DispatchQueueService,
+    private readonly failoverQueue: FailoverQueueService,
   ) {}
 
-  create(input: CreateCampaign) {
+  async create(input: CreateCampaign) {
+    if (input.segment_id) {
+      const segment = await this.prisma.segment.findUnique({ where: { id: input.segment_id } });
+      if (!segment) throw new NotFoundException({ error: 'segment_not_found' });
+    }
     return this.prisma.campaign.create({
       data: {
         name: input.name,
         objective: input.objective,
         messageTemplate: input.message_template,
         channelPolicy: input.channel_policy,
+        segmentId: input.segment_id,
         audienceJson: input.audience,
       },
     });
@@ -59,16 +67,28 @@ export class CampaignsService {
     const contactFilter: Prisma.CustomerWhereInput =
       channel === 'email' ? { emailEnc: { not: null } } : { phoneEnc: { not: null } };
 
-    const where: Prisma.CustomerWhereInput = {
-      ...contactFilter,
-      ...(audience.city ? { city: audience.city } : {}),
-      ...(audience.min_total_spend !== undefined
-        ? { totalSpend: { gte: audience.min_total_spend } }
-        : {}),
-      ...(audience.min_order_count !== undefined
-        ? { orderCount: { gte: audience.min_order_count } }
-        : {}),
-    };
+    // Segment campaigns compile the saved DSL; raw-audience campaigns keep
+    // the Phase 1 filters. The DSL is re-validated even though it comes from
+    // our own DB — validation at every boundary, including this one.
+    let audienceWhere: Prisma.CustomerWhereInput;
+    if (campaign.segmentId) {
+      const segment = await this.prisma.segment.findUnique({ where: { id: campaign.segmentId } });
+      if (!segment) throw new ConflictException({ error: 'segment_missing' });
+      const dsl = segmentDslSchema.safeParse(segment.dslJson);
+      if (!dsl.success) throw new ConflictException({ error: 'segment_dsl_invalid' });
+      audienceWhere = compileSegmentDsl(dsl.data);
+    } else {
+      audienceWhere = {
+        ...(audience.city ? { city: audience.city } : {}),
+        ...(audience.min_total_spend !== undefined
+          ? { totalSpend: { gte: audience.min_total_spend } }
+          : {}),
+        ...(audience.min_order_count !== undefined
+          ? { orderCount: { gte: audience.min_order_count } }
+          : {}),
+      };
+    }
+    const where: Prisma.CustomerWhereInput = { AND: [contactFilter, audienceWhere] };
 
     const customers = await this.prisma.customer.findMany({
       where,
@@ -112,6 +132,13 @@ export class CampaignsService {
       });
     }
 
+    // First failover sweep one window from now. With no failover channels it
+    // degrades to a finalization pass that marks the campaign COMPLETED.
+    await this.failoverQueue.scheduleSweep(
+      { campaignId: campaign.id, hop: 0 },
+      policy.failoverWindowMinutes * 60_000,
+    );
+
     this.logger.log(`Launched campaign ${campaign.id}: ${communications.length} communications`);
     return { campaign_id: campaign.id, audience_snapshot_count: communications.length };
   }
@@ -143,6 +170,21 @@ export class CampaignsService {
       eventGroups.map((group) => [group.eventType, group._count._all]),
     );
 
+    // Failover savings: children created by escalation, and how many of them
+    // actually reached the customer on the fallback channel.
+    const [escalations, rescued] = await Promise.all([
+      this.prisma.communication.count({
+        where: { campaignId: id, parentCommunicationId: { not: null } },
+      }),
+      this.prisma.communication.count({
+        where: {
+          campaignId: id,
+          parentCommunicationId: { not: null },
+          statusRank: { gte: STATUS_RANK.DELIVERED },
+        },
+      }),
+    ]);
+
     const total = Object.values(statusCounts).reduce((sum, count) => sum + count, 0);
     const reached = (atLeast: keyof typeof STATUS_RANK) =>
       Object.entries(statusCounts)
@@ -172,6 +214,7 @@ export class CampaignsService {
         clicked: reached('CLICKED'),
         failed: statusCounts['FAILED'],
       },
+      failover: { escalations, rescued },
     };
   }
 }

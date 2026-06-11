@@ -73,8 +73,14 @@ export default async function OverviewPage() {
             Upload customers and orders as CSV on the <a href="/data" className="font-medium text-pulse-600 hover:underline">Data page</a>, or
             POST them to the ingestion API (see <a href="/docs" className="font-medium text-pulse-600 hover:underline">API Docs</a>).
           </li>
-          <li>Launch a campaign via the API — the copilot UI lands in Phase 2.</li>
-          <li>Watch delivery states converge on the campaign stats endpoint.</li>
+          <li>
+            Open the <a href="/copilot" className="font-medium text-pulse-600 hover:underline">Copilot</a>: describe the audience in plain
+            language, approve the proposed rules, pick the channel plan, launch.
+          </li>
+          <li>
+            Watch delivery states converge live on the{' '}
+            <a href="/campaigns" className="font-medium text-pulse-600 hover:underline">campaign dashboard</a> — including failover rescues.
+          </li>
         </ol>
       </div>
     </div>

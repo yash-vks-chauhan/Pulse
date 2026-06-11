@@ -235,29 +235,29 @@ Whitelisted fields + operators only. Anything outside the schema → rejected, A
 ## 8. Phase-Wise Build Plan (June 11 → June 15, 12 PM)
 
 ### Phase 0 — Today, ~2h: Skeleton & deploy pipeline FIRST
-- [ ] Monorepo scaffold (`apps/web`, `apps/crm-api`, `apps/channel-simulator`, `packages/shared`)
+- [x] Monorepo scaffold (`apps/web`, `apps/crm-api`, `apps/channel-simulator`, `packages/shared`)
 - [ ] Provision: Neon Postgres, Upstash Redis, LLM API key
 - [ ] Deploy "hello world" of all three apps to Vercel/Railway **today** — never fight deployment on the last day
-- [ ] Prisma schema v1 committed
+- [x] Prisma schema v1 committed
 
-### Phase 1 — June 11–12 (the spine): Ingest + Simulator + Receipt loop
+### Phase 1 — June 11–12 (the spine): Ingest + Simulator + Receipt loop ✅
 > If this works end-to-end by Friday night, you have already passed the bar.
-- [ ] Ingestion APIs (customers, orders) with zod validation + upsert idempotency
-- [ ] **Reviewer-usable ingest**: simple CSV upload UI for customers/orders + an in-app API docs page — the PDF says "a public URL we can open **and use**", so ingest must be exercisable without Postman
-- [ ] **Pre-seeded demo workspace** so reviewers land on a living product (data, 1–2 past campaigns with stats), not an empty state
-- [ ] Seed script: realistic D2C coffee-brand data (5k customers, 25k orders, skewed spend distribution, believable recency patterns)
-- [ ] Channel Simulator: `/send` with per-channel config (latency dist, failure %, rate limit), async callback emitter with dup/out-of-order injection + webhook retry
-- [ ] `/api/receipts`: idempotent, rank-based state machine, event log
-- [ ] BullMQ worker: batch dispatch, throttle-aware retry, backoff, DLQ
-- [ ] **Integration test**: launch a raw 1k-message campaign via API, watch states converge correctly with chaos dials up
+- [x] Ingestion APIs (customers, orders) with zod validation + upsert idempotency
+- [x] **Reviewer-usable ingest**: simple CSV upload UI for customers/orders + an in-app API docs page — the PDF says "a public URL we can open **and use**", so ingest must be exercisable without Postman
+- [x] **Pre-seeded demo workspace** so reviewers land on a living product (data, 1–2 past campaigns with stats), not an empty state
+- [x] Seed script: realistic D2C coffee-brand data (5k customers, 25k orders, skewed spend distribution, believable recency patterns)
+- [x] Channel Simulator: `/send` with per-channel config (latency dist, failure %, rate limit), async callback emitter with dup/out-of-order injection + webhook retry
+- [x] `/api/receipts`: idempotent, rank-based state machine, event log
+- [x] BullMQ worker: batch dispatch, throttle-aware retry, backoff, DLQ
+- [x] **Integration test**: launch a raw 1k-message campaign via API, watch states converge correctly with chaos dials up
 
-### Phase 2 — June 13: AI layer + Campaigns + Failover
-- [ ] Segment DSL schema + compiler (DSL → Prisma query) + preview endpoint
-- [ ] NL → DSL via LLM structured output, validation + retry-on-invalid
-- [ ] Campaign create/launch flow: audience snapshot → comms rows → enqueue
-- [ ] Message drafting endpoint (variants + merge-tag rendering)
-- [ ] Failover policy: delayed-job check → escalate channel → linked child communication
-- [ ] Frontend: copilot chat surface, segment preview/edit, campaign creation, campaign list
+### Phase 2 — June 13: AI layer + Campaigns + Failover ✅
+- [x] Segment DSL schema + compiler (DSL → Prisma query) + preview endpoint
+- [x] NL → DSL via LLM structured output, validation + retry-on-invalid
+- [x] Campaign create/launch flow: audience snapshot → comms rows → enqueue
+- [x] Message drafting endpoint (variants + merge-tag rendering)
+- [x] Failover policy: delayed-job check → escalate channel → linked child communication
+- [x] Frontend: copilot chat surface, segment preview/edit, campaign creation, campaign list
 
 ### Phase 3 — June 14: Insights + polish + chaos demo
 - [ ] Campaign dashboard: funnel (sent→delivered→opened→read→clicked→converted), per-channel split, failover savings ("214 customers reached via SMS after WhatsApp failed")

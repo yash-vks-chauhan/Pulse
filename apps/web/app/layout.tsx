@@ -10,16 +10,14 @@ export const metadata: Metadata = {
 
 const NAV = [
   { href: '/', label: 'Overview' },
+  { href: '/copilot', label: 'Copilot' },
+  { href: '/campaigns', label: 'Campaigns' },
+  { href: '/segments', label: 'Segments' },
   { href: '/data', label: 'Data' },
   { href: '/docs', label: 'API Docs' },
 ];
 
-const UPCOMING = [
-  { label: 'Copilot', phase: 'Phase 2' },
-  { label: 'Segments', phase: 'Phase 2' },
-  { label: 'Campaigns', phase: 'Phase 2' },
-  { label: 'Insights', phase: 'Phase 3' },
-];
+const UPCOMING = [{ label: 'Insights', phase: 'Phase 3' }];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

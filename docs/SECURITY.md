@@ -11,6 +11,7 @@ implements each one.
  Web app ──(x-api-key, server-side only)───► CRM API
  CRM API ──(HMAC-SHA256 signed)────────────► Channel Simulator /send
  Simulator ──(HMAC-SHA256 signed)──────────► CRM API /api/receipts
+ CRM API ──(HTTPS, key server-side only)───► Anthropic API (NL→DSL, drafting)
  CRM API ◄──────────────────────────────────► Postgres / Redis (private network in prod)
 ```
 
@@ -26,7 +27,13 @@ limited. No service trusts input from any other service.
 | API key leaking to browsers | The web app proxies ingest through a server route; the key lives only in server env | `apps/web/app/api/ingest/route.ts` |
 | PII exposure at rest (DB dump, backup leak) | Customer email/phone encrypted with AES-256-GCM, random IV per value, versioned format (`v1:iv:tag:ct`) for key rotation; decrypted just-in-time at dispatch | `apps/crm-api/src/common/pii-crypto.ts` |
 | Lookups forcing decryption | HMAC-SHA256 blind index (`email_hash`) with a separate key | same file; `prisma/schema.prisma` |
-| Injection via LLM or API input | The LLM can only emit the whitelisted Segment DSL (zod-validated); it never writes SQL or touches the DB. All queries are parameterized via Prisma. Every HTTP body is zod-parsed before use | `packages/shared/src/segment-dsl.ts`, `apps/crm-api/src/common/zod-validation.pipe.ts` |
+| Injection via LLM or API input | The LLM can only emit the whitelisted Segment DSL (zod-validated); it never writes SQL or touches the DB. The DSL→query compiler maps whitelisted field/op pairs onto parameterized Prisma filters over fixed columns — no dynamic column names, no string interpolation. Every HTTP body is zod-parsed before use | `packages/shared/src/segment-dsl.ts`, `apps/crm-api/src/segments/dsl.compiler.ts`, `apps/crm-api/src/common/zod-validation.pipe.ts` |
+| Prompt injection via marketer text | Marketer input is wrapped in data tags and the system prompt instructs the model to ignore instructions inside it. Containment, not trust: the LLM's only outputs are artifacts (DSL / draft variants) that are structured-output-constrained server-side, re-validated with zod here, and **human-approved in the UI before anything executes**. A fully hijacked model can at worst propose a weird-but-valid segment or draft | `apps/crm-api/src/ai/ai.logic.ts`, `apps/crm-api/src/ai/ai.service.ts` |
+| AI output drift / hallucinated structure | Structured outputs (JSON-schema-constrained) + zod re-validation (defense in depth); exactly one corrective retry with the validation issues fed back, then an honest 422. Drafts may only use the `{{name}}`/`{{city}}` merge tags and are length-capped per channel | `apps/crm-api/src/ai/ai.logic.ts` |
+| LLM cost abuse / token burn | AI endpoints are key-guarded and throttled to 10 req/min (vs 300 global); prompts capped at 500 chars; `max_tokens` bounded; at most one retry per request | `apps/crm-api/src/ai/ai.controller.ts`, `apps/crm-api/src/ai/ai.schemas.ts` |
+| PII leaking to the LLM or previews | The LLM never sees customer rows — it gets the marketer's text and an audience summary only. Segment previews return non-sensitive columns; encrypted email/phone are decrypted just-in-time at dispatch and nowhere else | `apps/crm-api/src/segments/segments.service.ts` |
+| Web proxy abuse (SSRF / path steering) | Browser-facing `/api/*` routes proxy only FIXED upstream paths; UUID params are format-validated; bodies are JSON-only, size-capped, re-serialized before forwarding; the API key exists only server-side | `apps/web/app/api/_lib/proxy.ts` |
+| Double escalation under failover | `parent_communication_id` is UNIQUE + children inserted with `skipDuplicates`, so crashed/retried/concurrent sweeps cannot double-send; sweeps have deterministic job ids; only SENT/FAILED communications escalate (QUEUED is still inside our own pipeline) | `apps/crm-api/src/worker/failover.worker.ts`, `apps/crm-api/src/worker/failover.logic.ts` |
 | SSRF via callback_url | The simulator only POSTs callbacks to allowlisted origins (`CALLBACK_ALLOWLIST`) | `apps/channel-simulator/src/emitter.ts` |
 | Webhook poisoning / dup floods | Idempotency keys (unique constraint) absorb duplicates; rank-guarded status updates make concurrent receipt processing safe; unknown messages are counted, never 500s | `apps/crm-api/src/receipts/` |
 | DoS / abuse | Global rate limiting (Nest throttler; express-rate-limit on the simulator), bounded JSON body sizes (5 MB / 1 MB), batch caps (≤1,000 rows, ≤500 events) | `app.module.ts`, `channel-simulator/src/index.ts` |
@@ -45,6 +52,8 @@ limited. No service trusts input from any other service.
 - `PII_HASH_KEY` — blind-index HMAC key, separate from the encryption key so
   compromising one does not weaken the other.
 - `SIMULATOR_ADMIN_KEY` — chaos panel auth.
+- `ANTHROPIC_API_KEY` — AI layer. Optional: absent, the AI endpoints return
+  503 and the rest of the product keeps working. Never proxied to the browser.
 
 In production, set these as platform secrets (Railway/Vercel env),
 never in files. Postgres (Neon) and Redis (Upstash) connections use TLS.
