@@ -60,8 +60,55 @@ const envSchema = z
         (value) => value === undefined || value.length >= 10,
         'ANTHROPIC_API_KEY must be at least 10 chars when set',
       ),
-    /** Claude model for NL→DSL and message drafting. */
-    AI_MODEL: z.string().min(1).default('claude-opus-4-8'),
+    /** OpenRouter API key — the zero-budget alternative (free `:free` models,
+     *  cloud-hosted, OpenAI-compatible). Same containment model applies. */
+    OPENROUTER_API_KEY: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value : undefined))
+      .refine(
+        (value) => value === undefined || value.length >= 10,
+        'OPENROUTER_API_KEY must be at least 10 chars when set',
+      ),
+    /** Google AI Studio (Gemini) free-tier key — second leg of the chain. */
+    GEMINI_API_KEY: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value : undefined))
+      .refine(
+        (value) => value === undefined || value.length >= 10,
+        'GEMINI_API_KEY must be at least 10 chars when set',
+      ),
+    /** Groq free-tier key — third leg of the chain. */
+    GROQ_API_KEY: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value : undefined))
+      .refine(
+        (value) => value === undefined || value.length >= 10,
+        'GROQ_API_KEY must be at least 10 chars when set',
+      ),
+    /** Force the PRIMARY provider; the rest of the configured chain still
+     *  acts as fallback. Default order: openrouter → gemini → groq → anthropic. */
+    AI_PROVIDER: z.enum(['anthropic', 'openrouter', 'gemini', 'groq']).optional(),
+    /** Model id for the chosen provider; sensible per-provider default. */
+    AI_MODEL: z
+      .string()
+      .optional()
+      .transform((value) => (value ? value : undefined)),
+    /** Comma-separated fallback models (OpenRouter routes to the next one
+     *  when the primary is rate-limited or down). */
+    AI_FALLBACK_MODELS: z
+      .string()
+      .optional()
+      .transform((value) =>
+        value
+          ? value
+              .split(',')
+              .map((entry) => entry.trim())
+              .filter(Boolean)
+          : undefined,
+      ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
@@ -86,6 +133,55 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+export type AiProvider = 'anthropic' | 'openrouter' | 'gemini' | 'groq';
+
+const AI_DEFAULTS: Record<AiProvider, { model: string; fallbacks: string[] }> = {
+  openrouter: {
+    model: 'openai/gpt-oss-120b:free',
+    fallbacks: ['qwen/qwen3-next-80b-a3b-instruct:free', 'meta-llama/llama-3.3-70b-instruct:free'],
+  },
+  gemini: { model: 'gemini-2.5-flash', fallbacks: [] },
+  groq: { model: 'llama-3.3-70b-versatile', fallbacks: [] },
+  anthropic: { model: 'claude-opus-4-8', fallbacks: [] },
+};
+
+/**
+ * Build the provider failover chain: every provider with a key, in priority
+ * order (free tiers first, paid Anthropic last). AI_PROVIDER forces the
+ * primary; the rest of the configured chain still backs it up.
+ */
+function buildAiChain(env: NonNullable<typeof parsed.data>): AiProvider[] {
+  const keys: Record<AiProvider, string | undefined> = {
+    openrouter: env.OPENROUTER_API_KEY,
+    gemini: env.GEMINI_API_KEY,
+    groq: env.GROQ_API_KEY,
+    anthropic: env.ANTHROPIC_API_KEY,
+  };
+  let order: AiProvider[] = ['openrouter', 'gemini', 'groq', 'anthropic'];
+  if (env.AI_PROVIDER) {
+    if (!keys[env.AI_PROVIDER]) {
+      console.error(`[crm-api] AI_PROVIDER=${env.AI_PROVIDER} but the matching API key is not set`);
+      process.exit(1);
+    }
+    order = [env.AI_PROVIDER, ...order.filter((provider) => provider !== env.AI_PROVIDER)];
+  }
+  return order.filter((provider) => keys[provider] !== undefined);
+}
+
+const aiChain = buildAiChain(parsed.data);
+
+/** Per-provider model: defaults, with AI_MODEL overriding the primary's. */
+function buildAiModels(env: NonNullable<typeof parsed.data>): Record<AiProvider, string> {
+  const models = Object.fromEntries(
+    (Object.keys(AI_DEFAULTS) as AiProvider[]).map((provider) => [
+      provider,
+      AI_DEFAULTS[provider].model,
+    ]),
+  ) as Record<AiProvider, string>;
+  if (env.AI_MODEL && aiChain[0]) models[aiChain[0]] = env.AI_MODEL;
+  return models;
+}
+
 export const config = {
   env: parsed.data.NODE_ENV,
   port: parsed.data.CRM_API_PORT ?? parsed.data.PORT ?? 4000,
@@ -98,6 +194,15 @@ export const config = {
   hmacSecret: parsed.data.WEBHOOK_HMAC_SECRET,
   piiEncryptionKey: parsed.data.PII_ENCRYPTION_KEY,
   piiHashKey: parsed.data.PII_HASH_KEY,
-  anthropicApiKey: parsed.data.ANTHROPIC_API_KEY,
-  aiModel: parsed.data.AI_MODEL,
+  aiKeys: {
+    anthropic: parsed.data.ANTHROPIC_API_KEY,
+    openrouter: parsed.data.OPENROUTER_API_KEY,
+    gemini: parsed.data.GEMINI_API_KEY,
+    groq: parsed.data.GROQ_API_KEY,
+  } as Record<AiProvider, string | undefined>,
+  /** Failover chain of configured providers; empty = AI unconfigured. */
+  aiChain,
+  aiModels: buildAiModels(parsed.data),
+  /** Within-provider model fallbacks (OpenRouter routing). */
+  aiFallbackModels: parsed.data.AI_FALLBACK_MODELS ?? AI_DEFAULTS.openrouter.fallbacks,
 };

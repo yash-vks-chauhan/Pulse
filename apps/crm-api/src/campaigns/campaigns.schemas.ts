@@ -10,14 +10,16 @@ export const channelPolicySchema = z.object({
 export type ChannelPolicy = z.infer<typeof channelPolicySchema>;
 
 /**
- * Raw audience filters for Phase 1 launches. Phase 2 replaces this with the
- * Segment DSL (NL → DSL → compiled query).
+ * Raw audience filters. Segment campaigns use the DSL instead; follow-up
+ * campaigns target the reached-but-never-engaged slice of a past campaign.
  */
 export const audienceSchema = z.object({
   limit: z.number().int().min(1).max(50_000).optional(),
   city: z.string().min(1).max(100).optional(),
   min_total_spend: z.number().nonnegative().optional(),
   min_order_count: z.number().int().nonnegative().optional(),
+  /** Customers DELIVERED in this campaign but never OPENED/READ/CLICKED. */
+  not_engaged_in_campaign_id: z.string().uuid().optional(),
 });
 export type Audience = z.infer<typeof audienceSchema>;
 

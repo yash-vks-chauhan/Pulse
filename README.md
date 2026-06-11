@@ -138,7 +138,7 @@ Campaigns can enable a **failover policy** (e.g., WhatsApp → SMS → Email): i
 | Channel Simulator | **Express + TypeScript** (tiny, separate service) | Deliberately lightweight — it's a vendor stand-in |
 | Queue | **BullMQ + Redis (Upstash free tier)** | Real retry/backoff/DLQ semantics without running Kafka; state the "Kafka at scale" tradeoff |
 | DB | **PostgreSQL (Neon/Supabase) + Prisma** | Relational fits customers/orders/segments; Prisma schema doubles as documentation |
-| AI | **Anthropic/OpenAI API** with structured JSON outputs | Constrained outputs validated with zod before use |
+| AI | **Anthropic API or OpenRouter** (free `:free` models — zero budget) | Provider-swappable because outputs are zod-validated locally either way; schema rides server-side (Anthropic structured outputs) or in-prompt (OpenRouter) |
 | Deploy | **Vercel (frontend) + Railway (CRM API, Simulator, Redis worker)** | Public URLs, free tiers, no DevOps time sink |
 | Repo | **Monorepo:** `apps/web`, `apps/crm-api`, `apps/channel-simulator`, `packages/shared` (DSL types, event schemas) | Shared types between services = clean contract story |
 
@@ -259,13 +259,13 @@ Whitelisted fields + operators only. Anything outside the schema → rejected, A
 - [x] Failover policy: delayed-job check → escalate channel → linked child communication
 - [x] Frontend: copilot chat surface, segment preview/edit, campaign creation, campaign list
 
-### Phase 3 — June 14: Insights + polish + chaos demo
-- [ ] Campaign dashboard: funnel (sent→delivered→opened→read→clicked→converted), per-channel split, failover savings ("214 customers reached via SMS after WhatsApp failed")
-- [ ] Attribution job: order within 72h of click/read → `attributed_communication_id`; revenue-per-campaign stat
-- [ ] AI insights summary + one-click follow-up campaign
-- [ ] Simulator chaos panel (crank failure rate live)
-- [ ] Auth (simple email login / magic link — don't burn time), empty states, loading states
-- [ ] `docs/ARCHITECTURE.md` with diagram + tradeoffs; finalize `AI_WORKFLOW.md`; README (this file, updated to reality)
+### Phase 3 — June 14: Insights + polish + chaos demo ✅
+- [x] Campaign dashboard: funnel (sent→delivered→opened→read→clicked→converted), per-channel split, failover savings ("214 customers reached via SMS after WhatsApp failed")
+- [x] Attribution job: order within 72h of click/read → `attributed_communication_id`; revenue-per-campaign stat
+- [x] AI insights summary + one-click follow-up campaign
+- [x] Simulator chaos panel (crank failure rate live)
+- [x] Auth (access-code login + signed session cookie — magic links would need a real email provider, which the brief forbids; tradeoff stated in docs/SECURITY.md)
+- [x] `docs/ARCHITECTURE.md` with diagram + tradeoffs; `AI_WORKFLOW.md` kept current; README updated to reality
 
 ### Phase 4 — June 15 morning (buffer is sacred): Video + submit
 - [ ] Fresh-eyes test of the deployed product start-to-finish

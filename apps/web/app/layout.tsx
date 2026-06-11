@@ -13,11 +13,10 @@ const NAV = [
   { href: '/copilot', label: 'Copilot' },
   { href: '/campaigns', label: 'Campaigns' },
   { href: '/segments', label: 'Segments' },
+  { href: '/simulator', label: 'Chaos panel' },
   { href: '/data', label: 'Data' },
   { href: '/docs', label: 'API Docs' },
 ];
-
-const UPCOMING = [{ label: 'Insights', phase: 'Phase 3' }];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -41,22 +40,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   {item.label}
                 </Link>
               ))}
-              <div className="pt-4">
-                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Coming up
-                </p>
-                {UPCOMING.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between px-3 py-2 text-sm text-slate-400"
-                  >
-                    <span>{item.label}</span>
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium">
-                      {item.phase}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <form action="/api/auth/logout" method="post" className="pt-4">
+                <button
+                  type="submit"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                >
+                  Sign out
+                </button>
+              </form>
             </nav>
           </aside>
           <main className="flex-1 px-8 py-8">{children}</main>

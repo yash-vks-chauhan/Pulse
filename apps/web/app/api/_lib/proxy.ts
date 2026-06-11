@@ -68,3 +68,47 @@ export async function proxyToCrm(
 export function invalidId(): NextResponse {
   return NextResponse.json({ error: 'invalid_id' }, { status: 400 });
 }
+
+/**
+ * Chaos-panel proxy: one fixed simulator path (/admin/config); the admin key
+ * stays server-side. Patches are JSON-only and tightly size-capped — the
+ * simulator re-validates the shape with zod on its side.
+ */
+const SIMULATOR_URL = process.env.SIMULATOR_URL ?? 'http://localhost:4100';
+const MAX_ADMIN_BODY_BYTES = 64 * 1024;
+
+export async function proxyToSimulatorAdmin(options: {
+  method: 'GET' | 'PUT';
+  request?: Request;
+}): Promise<NextResponse> {
+  const adminKey = process.env.SIMULATOR_ADMIN_KEY;
+  if (!adminKey) {
+    return NextResponse.json({ error: 'server_not_configured' }, { status: 500 });
+  }
+
+  let body: string | undefined;
+  if (options.method === 'PUT' && options.request) {
+    try {
+      body = JSON.stringify(await options.request.json());
+    } catch {
+      return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
+    }
+    if (body.length > MAX_ADMIN_BODY_BYTES) {
+      return NextResponse.json({ error: 'payload_too_large' }, { status: 413 });
+    }
+  }
+
+  const upstream = await fetch(`${SIMULATOR_URL}/admin/config`, {
+    method: options.method,
+    headers: { 'content-type': 'application/json', 'x-admin-key': adminKey },
+    ...(body !== undefined ? { body } : {}),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(5000),
+  }).catch(() => undefined);
+
+  if (!upstream) {
+    return NextResponse.json({ error: 'simulator_unreachable' }, { status: 502 });
+  }
+  const payload = await upstream.json().catch(() => ({ error: 'invalid_upstream_response' }));
+  return NextResponse.json(payload, { status: upstream.status });
+}

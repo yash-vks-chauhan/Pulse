@@ -7,8 +7,9 @@ implements each one.
 ## Trust boundaries
 
 ```
- Browser ──(HTTPS, no secrets client-side)──► Web app (Next.js)
+ Browser ──(access code → signed session cookie)──► Web app (Next.js)
  Web app ──(x-api-key, server-side only)───► CRM API
+ Web app ──(x-admin-key, server-side only)─► Simulator /admin (chaos panel)
  CRM API ──(HMAC-SHA256 signed)────────────► Channel Simulator /send
  Simulator ──(HMAC-SHA256 signed)──────────► CRM API /api/receipts
  CRM API ──(HTTPS, key server-side only)───► Anthropic API (NL→DSL, drafting)
@@ -33,6 +34,8 @@ limited. No service trusts input from any other service.
 | LLM cost abuse / token burn | AI endpoints are key-guarded and throttled to 10 req/min (vs 300 global); prompts capped at 500 chars; `max_tokens` bounded; at most one retry per request | `apps/crm-api/src/ai/ai.controller.ts`, `apps/crm-api/src/ai/ai.schemas.ts` |
 | PII leaking to the LLM or previews | The LLM never sees customer rows — it gets the marketer's text and an audience summary only. Segment previews return non-sensitive columns; encrypted email/phone are decrypted just-in-time at dispatch and nowhere else | `apps/crm-api/src/segments/segments.service.ts` |
 | Web proxy abuse (SSRF / path steering) | Browser-facing `/api/*` routes proxy only FIXED upstream paths; UUID params are format-validated; bodies are JSON-only, size-capped, re-serialized before forwarding; the API key exists only server-side | `apps/web/app/api/_lib/proxy.ts` |
+| Unauthorized workspace access | With `PULSE_ACCESS_CODE` set, middleware gates every page and proxy route behind a signed httpOnly session cookie (HMAC-SHA256 over the expiry, tamper-evident, nothing sensitive inside). Login compares timing-safe and budgets 10 attempts / 15 min / IP | `apps/web/middleware.ts`, `apps/web/lib/auth.ts`, `apps/web/app/api/auth/login/route.ts` |
+| AI seeing customer data | The insights narrative is generated from aggregate campaign numbers only — counts, rates, revenue totals. No names, no contacts, no per-customer rows ever reach the LLM | `apps/crm-api/src/insights/insights.service.ts` |
 | Double escalation under failover | `parent_communication_id` is UNIQUE + children inserted with `skipDuplicates`, so crashed/retried/concurrent sweeps cannot double-send; sweeps have deterministic job ids; only SENT/FAILED communications escalate (QUEUED is still inside our own pipeline) | `apps/crm-api/src/worker/failover.worker.ts`, `apps/crm-api/src/worker/failover.logic.ts` |
 | SSRF via callback_url | The simulator only POSTs callbacks to allowlisted origins (`CALLBACK_ALLOWLIST`) | `apps/channel-simulator/src/emitter.ts` |
 | Webhook poisoning / dup floods | Idempotency keys (unique constraint) absorb duplicates; rank-guarded status updates make concurrent receipt processing safe; unknown messages are counted, never 500s | `apps/crm-api/src/receipts/` |
@@ -52,16 +55,27 @@ limited. No service trusts input from any other service.
 - `PII_HASH_KEY` — blind-index HMAC key, separate from the encryption key so
   compromising one does not weaken the other.
 - `SIMULATOR_ADMIN_KEY` — chaos panel auth.
-- `ANTHROPIC_API_KEY` — AI layer. Optional: absent, the AI endpoints return
-  503 and the rest of the product keeps working. Never proxied to the browser.
+- `OPENROUTER_API_KEY` / `GEMINI_API_KEY` / `GROQ_API_KEY` /
+  `ANTHROPIC_API_KEY` — the AI failover chain (free tiers first, in that
+  order; each key is one account on one service, used within that service's
+  own terms). Optional: with no keys, the AI endpoints return 503 and the
+  rest of the product keeps working. Never proxied to the browser. Providers
+  are swappable because the containment model doesn't trust any of them:
+  outputs are zod-validated locally regardless, and no PII ever goes
+  upstream — which also makes free-tier data policies a non-issue.
+- `PULSE_ACCESS_CODE` — web workspace login. Optional locally; set it on
+  hosted deploys. `PULSE_SESSION_SECRET` signs session cookies (falls back to
+  the access code).
 
 In production, set these as platform secrets (Railway/Vercel env),
 never in files. Postgres (Neon) and Redis (Upstash) connections use TLS.
 
 ## Deliberate scope limits (stated tradeoffs)
 
-- Single-workspace auth model; user login (magic link) lands in Phase 3 per
-  the build plan. All write surfaces are already key-protected.
+- Single-workspace auth: one shared access code, no per-user identities. The
+  brief forbids real messaging/email providers, which rules out true magic
+  links; a signed-cookie code gate is the honest equivalent for a single
+  demo workspace. At scale: SSO/OIDC + per-user sessions + audit logging.
 - Web CSP still allows `unsafe-inline`/`unsafe-eval` (Next.js dev tooling);
   tightening to nonce-based CSP is a known follow-up.
 - At enterprise scale: per-service mTLS, KMS-held keys with envelope

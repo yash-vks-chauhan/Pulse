@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 /**
  * Campaign detail — polls stats every 3s while the campaign is running and
- * renders the delivery funnel live. Polling goes through the same-origin
- * proxy; no key in the browser.
+ * renders the delivery funnel live. Insights (per-channel split, attributed
+ * revenue, AI narrative, one-click follow-up) load once on demand — they can
+ * cost an LLM call, so they are never polled. Everything goes through the
+ * same-origin proxy; no key in the browser.
  */
 
 interface Stats {
@@ -32,6 +34,23 @@ interface Stats {
   failover: { escalations: number; rescued: number };
 }
 
+interface Insights {
+  channels: Array<{
+    channel: string;
+    attempted: number;
+    delivered: number;
+    engaged: number;
+    clicked: number;
+    converted: number;
+    failed: number;
+    delivery_rate: number;
+  }>;
+  revenue: { attributed_orders: number; attributed_revenue: number; attribution_window_hours: number };
+  non_engaged_audience: number;
+  narrative: { source: 'ai' | 'heuristic'; summary: string; recommendation: string };
+  suggested_follow_up: { channel: string; objective: string; estimated_audience: number };
+}
+
 const FUNNEL_STEPS: Array<{ key: keyof Stats['funnel']; label: string; color: string }> = [
   { key: 'sent', label: 'Sent', color: 'bg-pulse-500' },
   { key: 'delivered', label: 'Delivered', color: 'bg-sky-500' },
@@ -41,9 +60,14 @@ const FUNNEL_STEPS: Array<{ key: keyof Stats['funnel']; label: string; color: st
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [launching, setLaunching] = useState(false);
+  const [insights, setInsights] = useState<Insights | null>(null);
+  const [insightsBusy, setInsightsBusy] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [followUpBusy, setFollowUpBusy] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/campaigns/${params.id}/stats`, { cache: 'no-store' });
@@ -66,6 +90,36 @@ export default function CampaignDetailPage() {
     const response = await fetch(`/api/campaigns/${params.id}/launch`, { method: 'POST' });
     setLaunching(false);
     if (response.ok) void load();
+  }
+
+  async function loadInsights() {
+    setInsightsBusy(true);
+    setInsightsError(null);
+    const response = await fetch(`/api/insights/${params.id}`, { cache: 'no-store' });
+    setInsightsBusy(false);
+    if (!response.ok) {
+      setInsightsError('Could not load insights.');
+      return;
+    }
+    setInsights((await response.json()) as Insights);
+  }
+
+  async function createFollowUp() {
+    setFollowUpBusy(true);
+    const response = await fetch(`/api/insights/${params.id}/follow-up`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    setFollowUpBusy(false);
+    if (response.ok) {
+      const campaign = (await response.json()) as { id: string };
+      router.push(`/campaigns/${campaign.id}`);
+      setInsights(null);
+      setStats(null);
+    } else {
+      setInsightsError('Could not create the follow-up campaign.');
+    }
   }
 
   if (error) {
@@ -167,6 +221,105 @@ export default function CampaignDetailPage() {
           </div>
         </div>
       </div>
+
+      {stats.campaign.status !== 'DRAFT' && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium">Insights</h2>
+            <button
+              onClick={() => void loadInsights()}
+              disabled={insightsBusy}
+              className="rounded-lg bg-pulse-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
+            >
+              {insightsBusy ? 'Analyzing…' : insights ? 'Refresh insights' : 'Generate insights'}
+            </button>
+          </div>
+          {insightsError && (
+            <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{insightsError}</p>
+          )}
+
+          {insights && (
+            <div className="mt-4 space-y-4">
+              <div className="rounded-lg bg-pulse-50 p-4 text-sm text-slate-700">
+                <p>
+                  <span className="font-semibold">
+                    {insights.narrative.source === 'ai' ? 'Copilot' : 'Summary'}:
+                  </span>{' '}
+                  {insights.narrative.summary}
+                </p>
+                <p className="mt-2">
+                  <span className="font-semibold">Next:</span> {insights.narrative.recommendation}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div className="rounded-lg bg-emerald-50 px-4 py-3">
+                  <p className="text-xs text-emerald-700">Attributed revenue ({insights.revenue.attribution_window_hours}h window)</p>
+                  <p className="text-lg font-semibold text-emerald-800">
+                    ₹{insights.revenue.attributed_revenue.toLocaleString('en-IN')}
+                    <span className="ml-2 text-xs font-normal">
+                      {insights.revenue.attributed_orders} orders
+                    </span>
+                  </p>
+                </div>
+                <div className="rounded-lg bg-slate-50 px-4 py-3">
+                  <p className="text-xs text-slate-500">Reached but never engaged</p>
+                  <p className="text-lg font-semibold text-slate-700">
+                    {insights.non_engaged_audience.toLocaleString()} customers
+                  </p>
+                </div>
+              </div>
+
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400">
+                    <th className="py-1.5 pr-2 font-medium">Channel</th>
+                    <th className="py-1.5 pr-2 font-medium">Attempted</th>
+                    <th className="py-1.5 pr-2 font-medium">Delivered</th>
+                    <th className="py-1.5 pr-2 font-medium">Engaged</th>
+                    <th className="py-1.5 pr-2 font-medium">Clicked</th>
+                    <th className="py-1.5 pr-2 font-medium">Converted</th>
+                    <th className="py-1.5 font-medium">Delivery rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {insights.channels.map((channel) => (
+                    <tr key={channel.channel} className="border-b border-slate-100 last:border-0">
+                      <td className="py-1.5 pr-2 font-medium">{channel.channel}</td>
+                      <td className="py-1.5 pr-2">{channel.attempted.toLocaleString()}</td>
+                      <td className="py-1.5 pr-2">{channel.delivered.toLocaleString()}</td>
+                      <td className="py-1.5 pr-2">{channel.engaged.toLocaleString()}</td>
+                      <td className="py-1.5 pr-2">{channel.clicked.toLocaleString()}</td>
+                      <td className="py-1.5 pr-2">{channel.converted.toLocaleString()}</td>
+                      <td className="py-1.5">{channel.delivery_rate}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {insights.suggested_follow_up.estimated_audience > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-pulse-200 bg-white p-4">
+                  <p className="text-sm text-slate-600">
+                    Follow up with the{' '}
+                    <span className="font-semibold">
+                      {insights.suggested_follow_up.estimated_audience.toLocaleString()} customers
+                    </span>{' '}
+                    who never engaged — via{' '}
+                    <span className="font-semibold">{insights.suggested_follow_up.channel}</span>.
+                  </p>
+                  <button
+                    onClick={() => void createFollowUp()}
+                    disabled={followUpBusy}
+                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {followUpBusy ? 'Creating…' : 'Create follow-up campaign'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

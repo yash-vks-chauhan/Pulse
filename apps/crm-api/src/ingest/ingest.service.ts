@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PiiCrypto } from '../common/pii-crypto';
 import { config } from '../config';
+import { InsightsService } from '../insights/insights.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CustomersBatch, OrdersBatch } from './ingest.schemas';
 
@@ -22,7 +23,10 @@ export class IngestService {
   private readonly logger = new Logger(IngestService.name);
   private readonly pii = new PiiCrypto(config.piiEncryptionKey, config.piiHashKey);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly insights: InsightsService,
+  ) {}
 
   async upsertCustomers(batch: CustomersBatch): Promise<IngestResult> {
     const errors: IngestResult['errors'] = [];
@@ -75,8 +79,9 @@ export class IngestService {
     });
 
     let upserted = 0;
+    const upsertedRows: Array<{ id: string; customerId: string; orderedAt: Date }> = [];
     for (const chunk of chunked(valid, 100)) {
-      await this.prisma.$transaction(
+      const rows = await this.prisma.$transaction(
         chunk.map((order) => {
           const data = {
             customerId: customerIdByExternal.get(order.customer_external_id)!,
@@ -93,6 +98,11 @@ export class IngestService {
         }),
       );
       upserted += chunk.length;
+      upsertedRows.push(...rows.map((row) => ({
+        id: row.id,
+        customerId: row.customerId,
+        orderedAt: row.orderedAt,
+      })));
     }
 
     // Recompute denormalized rollups from the orders table itself — re-running
@@ -100,7 +110,11 @@ export class IngestService {
     const affectedCustomerIds = valid.map((o) => customerIdByExternal.get(o.customer_external_id)!);
     await this.recomputeRollups([...new Set(affectedCustomerIds)]);
 
-    this.logger.log(`Upserted ${upserted} orders (${errors.length} rejected)`);
+    // Attribution: orders following a click/read inside the 72h window mark
+    // their communication CONVERTED. Idempotent, so re-ingestion is safe.
+    const attributed = await this.insights.attributeNewOrders(upsertedRows);
+
+    this.logger.log(`Upserted ${upserted} orders (${errors.length} rejected, ${attributed} attributed)`);
     return { upserted, errors };
   }
 

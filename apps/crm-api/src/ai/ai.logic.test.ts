@@ -120,6 +120,36 @@ describe('findInvalidMergeTags', () => {
   });
 });
 
+describe('extractJson + lenient parsing (open models wrap JSON in fences)', () => {
+  it('parses a fenced response', () => {
+    const result = parseSegmentResponse(
+      '```json\n' +
+        JSON.stringify({
+          explanation: 'x',
+          dsl: { logic: 'AND', conditions: [{ field: 'order_count', op: 'gte', value: 2 }] },
+        }) +
+        '\n```',
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('parses JSON surrounded by prose', () => {
+    const result = parseSegmentResponse(
+      'Here is the segment you asked for:\n' +
+        JSON.stringify({
+          explanation: 'x',
+          dsl: { logic: 'AND', conditions: [{ field: 'order_count', op: 'gte', value: 2 }] },
+        }) +
+        '\nLet me know if you need changes!',
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('still rejects garbage', () => {
+    expect(parseSegmentResponse('no json here at all').ok).toBe(false);
+  });
+});
+
 describe('buildRetryMessage', () => {
   it('lists every issue for the corrective turn', () => {
     const message = buildRetryMessage(['a: bad', 'b: worse']);

@@ -189,6 +189,20 @@ export default function DocsPage() {
         />
 
         <Endpoint
+          method="GET"
+          path="/api/insights/:campaignId"
+          auth="x-api-key"
+          description="Per-channel breakdown, attributed revenue (72h last-touch), failover savings, and a performance narrative with a recommended next action (AI-written when configured, honest heuristic otherwise). Rate-limited to 20/min."
+        />
+
+        <Endpoint
+          method="POST"
+          path="/api/insights/:campaignId/follow-up"
+          auth="x-api-key"
+          description="One-click follow-up: creates a DRAFT campaign targeting customers who were reached but never engaged. Channel/objective/message default from the recommendation; the marketer reviews and launches."
+        />
+
+        <Endpoint
           method="POST"
           path="/api/receipts"
           auth="HMAC signature"

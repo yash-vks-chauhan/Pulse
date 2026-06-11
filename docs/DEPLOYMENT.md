@@ -112,6 +112,24 @@ CRM_PUBLIC_URL=https://<crm-api-railway-domain>
 WEB_ORIGIN=https://<vercel-web-domain>
 ```
 
+Optional AI copilot variables for the CRM API:
+
+```bash
+# Set at least one key. The runtime tries configured providers in this order:
+# openrouter -> gemini -> groq -> anthropic
+OPENROUTER_API_KEY=<openrouter-key>
+GEMINI_API_KEY=<gemini-key>
+GROQ_API_KEY=<groq-key>
+ANTHROPIC_API_KEY=<anthropic-key>
+
+# Optional: force the primary provider, while keeping the others as fallback.
+AI_PROVIDER=openrouter
+
+# Optional: override the primary provider model or OpenRouter fallback models.
+AI_MODEL=
+AI_FALLBACK_MODELS=
+```
+
 After deploy, open **Settings → Networking → Public Networking** and click
 **Generate Domain**. Save this as the CRM API public URL.
 

@@ -52,12 +52,14 @@ model Order {
   items                     Json     @default("[]")
   orderedAt                 DateTime @map("ordered_at")
   source                    String   @default("api")
-  // Set by the attribution job (Phase 3) when an order follows a click/read.
-  attributedCommunicationId String?  @map("attributed_communication_id")
+  // Set by attribution when the order follows a click/read within the window.
+  attributedCommunicationId String?        @map("attributed_communication_id")
+  attributedCommunication   Communication? @relation("Attribution", fields: [attributedCommunicationId], references: [id], onDelete: SetNull)
   createdAt                 DateTime @default(now()) @map("created_at")
 
   @@index([customerId])
   @@index([orderedAt])
+  @@index([attributedCommunicationId])
   @@map("orders")
 }
 
@@ -143,7 +145,8 @@ model Communication {
   createdAt             DateTime            @default(now()) @map("created_at")
   updatedAt             DateTime            @updatedAt @map("updated_at")
 
-  events CommEvent[]
+  events           CommEvent[]
+  attributedOrders Order[]     @relation("Attribution")
 
   @@index([campaignId, status])
   @@index([customerId])

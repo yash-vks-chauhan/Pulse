@@ -45,12 +45,15 @@ apps/web/
 │   ├── copilot/page.tsx           # NL → segment → drafts → channel plan → launch (Phase 2)
 │   ├── segments/page.tsx          # Saved segments with rule chips
 │   ├── campaigns/page.tsx         # Campaign list
-│   ├── campaigns/[id]/page.tsx    # Live funnel, failover savings (3s polling)
+│   ├── campaigns/[id]/page.tsx    # Live funnel, failover savings, insights + follow-up
+│   ├── simulator/page.tsx         # Chaos panel — live failure/engagement/chaos dials
+│   ├── login/page.tsx             # Workspace access (when PULSE_ACCESS_CODE is set)
 │   ├── data/page.tsx              # CSV upload for customers/orders (batched, validated)
 │   ├── docs/page.tsx              # In-app API docs with curl examples
-│   ├── api/_lib/proxy.ts          # Fixed-path server proxy — key never reaches the browser
-│   ├── api/{ingest,segments,campaigns,ai}/  # Same-origin proxy routes to the CRM API
-│   └── layout.tsx                 # Dashboard shell
+│   ├── api/_lib/proxy.ts          # Fixed-path server proxies — keys never reach the browser
+│   └── api/{ingest,segments,campaigns,ai,insights,simulator,auth}/  # Same-origin proxy routes
+├── lib/auth.ts                    # Signed-cookie session (Web Crypto, edge-safe)
+├── middleware.ts                  # Workspace gate for every page + proxy route
 ├── next.config.mjs                # Security headers (CSP, HSTS, frame-deny, …)
 └── package.json
 ```
@@ -72,6 +75,9 @@ apps/crm-api/
 │   │   ├── ai.logic.ts            #   prompts + validate/retry rules, pure & unit-tested
 │   │   └── ai.service.ts          #   the only file that talks to an LLM; 503s when unconfigured
 │   ├── campaigns/                 # Create, launch (segment or raw audience → queue), stats-on-read
+│   ├── insights/                  # Attribution (72h last-touch), channel split, revenue,
+│   │   │                          #   AI narrative + heuristic fallback, one-click follow-up
+│   │   └── attribution.logic.ts   #   pure matching rules (unit-tested)
 │   ├── worker/                    # BullMQ dispatch: batching, throttle backoff, retries, DLQ
 │   │   ├── failover.logic.ts      #   escalation rules (pure, unit-tested)
 │   │   └── failover.worker.ts     #   delayed sweeps → linked child comms on the next channel
@@ -146,6 +152,7 @@ packages/shared/
 | "The LLM never touches the DB" made concrete | `packages/shared/src/segment-dsl.ts` → `apps/crm-api/src/segments/dsl.compiler.ts` |
 | The AI layer (structured outputs, validate + retry, containment) | `apps/crm-api/src/ai/` (pure logic + tests) |
 | Channel failover escalation | `apps/crm-api/src/worker/failover.{logic,worker}.ts` |
+| Conversion attribution + insights | `apps/crm-api/src/insights/` (pure logic + tests) |
 | The security model | `docs/SECURITY.md`, `packages/shared/src/security.ts` |
 | PII encryption at rest | `apps/crm-api/src/common/pii-crypto.ts` |
 | How realistic the vendor simulation is | `apps/channel-simulator/src/channels.ts` |

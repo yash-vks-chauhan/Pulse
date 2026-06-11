@@ -83,4 +83,65 @@ by a human, and the LLM never sees PII or touches the DB.
 
 ---
 
-*(Next entries: Phase 3 — insights narrative, attribution, auth, chaos panel.)*
+## 2026-06-11 — Phase 3: attribution, insights, chaos panel, auth (Claude Code)
+
+**Delegated:** the `insights/` module (attribution at ingest, per-channel
+breakdown, attributed revenue, AI narrative + one-click follow-up), the
+chaos-panel UI over the simulator admin API, and the web login gate
+(middleware + signed session cookie).
+
+**Directed decisions (mine, not the AI's):**
+- **Attribution is last-touch inside 72h, computed at ingest, idempotent.**
+  The CONVERTED advance is rank-guarded and the `converted` event carries a
+  deterministic idempotency key — re-ingesting the same orders can never
+  double-count revenue. The matching rules live in a pure, unit-tested
+  function (`attribution.logic.ts`), same pattern as receipts and failover.
+- **The insights narrative must never break the page.** AI configured → AI
+  narrative; AI failing or absent → heuristic readout computed from the same
+  aggregates, labeled `source: "heuristic"`. The endpoint cannot 5xx because
+  an LLM hiccuped.
+- **The LLM sees aggregates only.** The narrative prompt receives counts,
+  rates and revenue totals — never customer rows. Cheap to enforce, easy to
+  defend in review.
+- **No magic links, and saying so.** Real email providers are forbidden by
+  the brief, so "magic link" auth would be theater. Shipped instead: a shared
+  access code → HMAC-signed httpOnly cookie, timing-safe comparison, 10
+  attempts / 15 min / IP — and the tradeoff documented in SECURITY.md.
+
+**Reviewed & corrected:** the funnel's `queued`/`failed` counts are typed
+`number | undefined` under `noUncheckedIndexedAccess`; the first insights
+draft summed them unchecked. Caught by the strict build, fixed with explicit
+coalescing rather than loosening the compiler.
+
+---
+
+## 2026-06-11 — AI provider swap: OpenRouter free models (zero budget)
+
+**Why:** no budget for paid LLM calls. OpenRouter's free `:free` models
+(cloud-hosted, OpenAI-compatible) replace Anthropic as the default provider,
+with Anthropic still supported behind a config switch.
+
+**The architecture made this a ~150-line change, which is the point:** the
+AI layer never trusted the model. Structured outputs were a belt; the zod
+validation + corrective retry was always the suspenders. For OpenRouter the
+JSON Schema moves into the prompt, responses get lenient JSON extraction
+(fenced/prose-wrapped output), and validation stays identical. Free-model
+rate limits are handled with OpenRouter's fallback routing
+(gpt-oss-120b → qwen3-next-80b → llama-3.3-70b) and surfaced honestly as
+503 `ai_rate_limited` instead of a fake 502.
+
+**Privacy check:** free models may train on inputs — acceptable here only
+because the containment model already guarantees no PII ever reaches the
+LLM (marketer text, aggregate stats, nothing else).
+
+**Extended to a provider chain (same day):** openrouter → gemini → groq →
+anthropic, each leg one account on one service within its own terms. A
+rate-limited leg cools down five minutes while the next serves; responses
+report which leg answered (`model: "openrouter:openai/gpt-oss-120b:free"`).
+Rejected on principle: rotating multiple keys from multiple accounts of ONE
+provider to dodge its free-tier quota — that's a ToS violation with a ban
+risk precisely when reviewers would be grading the hosted demo.
+
+---
+
+*(Next: Phase 4 — deploy, fresh-eyes pass, walkthrough video.)*

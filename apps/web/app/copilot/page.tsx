@@ -67,7 +67,7 @@ async function postJson(path: string, body: unknown) {
 }
 
 function errorText(status: number, payload: { error?: string; issues?: unknown[] }): string {
-  if (status === 503) return 'AI is not configured on the server (ANTHROPIC_API_KEY). You can still build the segment and write the message manually.';
+  if (status === 503) return 'AI is not configured on the server. Set at least one provider key: OPENROUTER_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or ANTHROPIC_API_KEY. You can still build the segment and write the message manually.';
   if (status === 422) return 'The AI could not produce a valid result for that input — try rephrasing, or build the rules manually.';
   if (status === 429) return 'Rate limit hit — wait a minute and try again.';
   return `Request failed (${payload.error ?? status}).`;

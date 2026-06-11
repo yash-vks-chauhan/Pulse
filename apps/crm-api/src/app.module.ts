@@ -5,6 +5,7 @@ import { AiModule } from './ai/ai.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { HealthModule } from './health/health.module';
 import { IngestModule } from './ingest/ingest.module';
+import { InsightsModule } from './insights/insights.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReceiptsModule } from './receipts/receipts.module';
 import { SegmentsModule } from './segments/segments.module';
@@ -23,6 +24,7 @@ import { WorkerModule } from './worker/worker.module';
     SegmentsModule,
     AiModule,
     CampaignsModule,
+    InsightsModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

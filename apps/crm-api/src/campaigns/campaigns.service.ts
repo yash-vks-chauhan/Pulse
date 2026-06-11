@@ -78,15 +78,34 @@ export class CampaignsService {
       if (!dsl.success) throw new ConflictException({ error: 'segment_dsl_invalid' });
       audienceWhere = compileSegmentDsl(dsl.data);
     } else {
-      audienceWhere = {
-        ...(audience.city ? { city: audience.city } : {}),
-        ...(audience.min_total_spend !== undefined
-          ? { totalSpend: { gte: audience.min_total_spend } }
-          : {}),
-        ...(audience.min_order_count !== undefined
-          ? { orderCount: { gte: audience.min_order_count } }
-          : {}),
-      };
+      const filters: Prisma.CustomerWhereInput[] = [];
+      if (audience.city) filters.push({ city: audience.city });
+      if (audience.min_total_spend !== undefined)
+        filters.push({ totalSpend: { gte: audience.min_total_spend } });
+      if (audience.min_order_count !== undefined)
+        filters.push({ orderCount: { gte: audience.min_order_count } });
+      if (audience.not_engaged_in_campaign_id) {
+        // Follow-up audience: reached in the parent campaign, never engaged.
+        filters.push(
+          {
+            communications: {
+              some: {
+                campaignId: audience.not_engaged_in_campaign_id,
+                statusRank: { gte: STATUS_RANK.DELIVERED },
+              },
+            },
+          },
+          {
+            communications: {
+              none: {
+                campaignId: audience.not_engaged_in_campaign_id,
+                statusRank: { gte: STATUS_RANK.OPENED },
+              },
+            },
+          },
+        );
+      }
+      audienceWhere = { AND: filters };
     }
     const where: Prisma.CustomerWhereInput = { AND: [contactFilter, audienceWhere] };
 
