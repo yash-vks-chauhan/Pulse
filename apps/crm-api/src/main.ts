@@ -35,7 +35,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api', { exclude: ['healthz'] });
   app.enableShutdownHooks();
 
-  await app.listen(config.port);
+  await app.listen(config.port, '0.0.0.0');
   new Logger('Bootstrap').log(`crm-api listening on :${config.port} (env=${config.env})`);
 }
 

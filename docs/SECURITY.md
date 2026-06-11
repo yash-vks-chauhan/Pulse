@@ -46,7 +46,7 @@ limited. No service trusts input from any other service.
   compromising one does not weaken the other.
 - `SIMULATOR_ADMIN_KEY` — chaos panel auth.
 
-In production, set these as platform secrets (Railway/Render/Vercel env),
+In production, set these as platform secrets (Railway/Vercel env),
 never in files. Postgres (Neon) and Redis (Upstash) connections use TLS.
 
 ## Deliberate scope limits (stated tradeoffs)

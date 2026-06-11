@@ -101,6 +101,6 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(err.name === 'PayloadTooLargeError' ? 413 : 500).json({ error: 'internal_error' });
 });
 
-app.listen(config.port, () => {
+app.listen(config.port, '0.0.0.0', () => {
   console.log(`[channel-simulator] listening on :${config.port} (env=${config.env})`);
 });

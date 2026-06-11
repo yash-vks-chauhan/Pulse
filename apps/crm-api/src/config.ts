@@ -10,7 +10,8 @@ loadDotenv({ path: existsSync(localEnv) ? localEnv : rootEnv });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  CRM_API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  CRM_API_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   /** Base URL of the channel simulator (worker dispatch target). */
@@ -49,7 +50,7 @@ if (!parsed.success) {
 
 export const config = {
   env: parsed.data.NODE_ENV,
-  port: parsed.data.CRM_API_PORT,
+  port: parsed.data.CRM_API_PORT ?? parsed.data.PORT ?? 4000,
   databaseUrl: parsed.data.DATABASE_URL,
   redisUrl: parsed.data.REDIS_URL,
   simulatorUrl: parsed.data.SIMULATOR_URL.replace(/\/$/, ''),

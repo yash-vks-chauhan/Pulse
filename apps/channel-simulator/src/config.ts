@@ -10,7 +10,8 @@ loadDotenv({ path: existsSync(localEnv) ? localEnv : rootEnv });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  SIMULATOR_PORT: z.coerce.number().int().min(1).max(65535).default(4100),
+  PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  SIMULATOR_PORT: z.coerce.number().int().min(1).max(65535).optional(),
   /** Shared secret for HMAC signing of /send (inbound) and callbacks (outbound). */
   WEBHOOK_HMAC_SECRET: z.string().min(32, 'WEBHOOK_HMAC_SECRET must be at least 32 chars'),
   /** Admin key protecting the chaos/config endpoints. */
@@ -31,7 +32,7 @@ if (!parsed.success) {
 
 export const config = {
   env: parsed.data.NODE_ENV,
-  port: parsed.data.SIMULATOR_PORT,
+  port: parsed.data.SIMULATOR_PORT ?? parsed.data.PORT ?? 4100,
   hmacSecret: parsed.data.WEBHOOK_HMAC_SECRET,
   adminKey: parsed.data.SIMULATOR_ADMIN_KEY,
   callbackAllowlist: parsed.data.CALLBACK_ALLOWLIST.split(',').map((origin) => origin.trim()),

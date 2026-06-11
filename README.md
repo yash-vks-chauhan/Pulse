@@ -139,7 +139,7 @@ Campaigns can enable a **failover policy** (e.g., WhatsApp → SMS → Email): i
 | Queue | **BullMQ + Redis (Upstash free tier)** | Real retry/backoff/DLQ semantics without running Kafka; state the "Kafka at scale" tradeoff |
 | DB | **PostgreSQL (Neon/Supabase) + Prisma** | Relational fits customers/orders/segments; Prisma schema doubles as documentation |
 | AI | **Anthropic/OpenAI API** with structured JSON outputs | Constrained outputs validated with zod before use |
-| Deploy | **Vercel (frontend) + Railway/Render (CRM API, Simulator, Redis worker)** | Public URLs, free tiers, no DevOps time sink |
+| Deploy | **Vercel (frontend) + Railway (CRM API, Simulator, Redis worker)** | Public URLs, free tiers, no DevOps time sink |
 | Repo | **Monorepo:** `apps/web`, `apps/crm-api`, `apps/channel-simulator`, `packages/shared` (DSL types, event schemas) | Shared types between services = clean contract story |
 
 ---
