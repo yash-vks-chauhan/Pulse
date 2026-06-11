@@ -24,6 +24,21 @@ const MAX_THROTTLE_ATTEMPTS = 8;
 const THROTTLE_BASE_DELAY_MS = 1000;
 const THROTTLE_MAX_DELAY_MS = 30_000;
 
+function readErrorField(error: unknown, field: string): string | undefined {
+  if (!error || typeof error !== 'object' || !(field in error)) return undefined;
+  const value = (error as Record<string, unknown>)[field];
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : undefined;
+}
+
+function describeFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = (error as Error & { cause?: unknown }).cause;
+  const causeCode = readErrorField(cause, 'code');
+  const causeMessage = readErrorField(cause, 'message');
+  const details = [causeCode, causeMessage].filter(Boolean).join(': ');
+  return details ? `${error.name}: ${error.message}; cause=${details}` : `${error.name}: ${error.message}`;
+}
+
 /**
  * Campaign dispatch worker. Pulls batches of QUEUED communications, decrypts
  * recipients just-in-time, and sends them to the channel simulator over the
@@ -126,6 +141,10 @@ export class DispatchWorker implements OnModuleInit, OnModuleDestroy {
         body,
         signal: controller.signal,
       });
+    } catch (error) {
+      throw new Error(
+        `simulator /send fetch failed for ${new URL(config.simulatorUrl).origin} (${describeFetchError(error)})`,
+      );
     } finally {
       clearTimeout(timeout);
     }
