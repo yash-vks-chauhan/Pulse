@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { accessCode } from '../../lib/auth';
+import { accessCode, authEnabled } from '../../lib/auth';
 import { LoginForm } from './login-form';
 
 /**
@@ -14,11 +14,17 @@ import { LoginForm } from './login-form';
 export const dynamic = 'force-dynamic';
 
 export default function LoginPage() {
+  const enabled = authEnabled();
+  if (!enabled && process.env.PULSE_ACCESS_CODE) {
+    console.warn(
+      '[web] PULSE_ACCESS_CODE is set but shorter than 8 chars — auth is DISABLED',
+    );
+  }
   const reviewerCode =
-    process.env.PULSE_SHOW_ACCESS_CODE === 'true' ? accessCode() : undefined;
+    enabled && process.env.PULSE_SHOW_ACCESS_CODE === 'true' ? accessCode() : undefined;
   return (
     <Suspense>
-      <LoginForm reviewerCode={reviewerCode} />
+      <LoginForm authDisabled={!enabled} reviewerCode={reviewerCode} />
     </Suspense>
   );
 }
