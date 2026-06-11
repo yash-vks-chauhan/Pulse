@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { authEnabled } from '../lib/auth';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -40,14 +41,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   {item.label}
                 </Link>
               ))}
-              <form action="/api/auth/logout" method="post" className="pt-4">
-                <button
-                  type="submit"
-                  className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-                >
-                  Sign out
-                </button>
-              </form>
+              {authEnabled() && (
+                <form action="/api/auth/logout" method="post" className="pt-4">
+                  <button
+                    type="submit"
+                    className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                  >
+                    Sign out
+                  </button>
+                </form>
+              )}
             </nav>
           </aside>
           <main className="flex-1 px-8 py-8">{children}</main>
