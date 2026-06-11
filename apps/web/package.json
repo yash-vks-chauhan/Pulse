@@ -9,7 +9,6 @@
     "start": "next start -p 3000"
   },
   "dependencies": {
-    "@pulse/shared": "*",
     "dotenv": "^16.4.7",
     "next": "^16.2.9",
     "papaparse": "^5.4.1",

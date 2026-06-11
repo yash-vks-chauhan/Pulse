@@ -6,6 +6,8 @@ dist/
 .next/
 out/
 *.tsbuildinfo
+.vercel/
+apps/*/.vercel/
 
 # Environment — secrets never enter the repo
 .env
