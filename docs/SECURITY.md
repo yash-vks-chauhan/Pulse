@@ -77,6 +77,11 @@ never in files. Postgres (Neon) and Redis (Upstash) connections use TLS.
   brief forbids real messaging/email providers, which rules out true magic
   links; a signed-cookie code gate is the honest equivalent for a single
   demo workspace. At scale: SSO/OIDC + per-user sessions + audit logging.
+- On the judged demo deploy, `PULSE_SHOW_ACCESS_CODE=true` intentionally
+  displays the code on the login screen: reviewers get in with one click,
+  while the gate still demands a signed session cookie — which is what keeps
+  crawlers and bots off the proxy routes and the rate-limited AI endpoints.
+  Unset the flag and the code becomes a real secret again.
 - Web CSP still allows `unsafe-inline`/`unsafe-eval` (Next.js dev tooling);
   tightening to nonce-based CSP is a known follow-up.
 - At enterprise scale: per-service mTLS, KMS-held keys with envelope

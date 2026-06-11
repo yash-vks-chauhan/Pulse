@@ -4,6 +4,15 @@
 
 > Deadline: **12 PM, June 15, 2026** · Deliverables: **Hosted URL + GitHub repo + 5–6 min walkthrough video**
 
+**For reviewers:** the hosted workspace is gated by a login, and the access
+code is displayed right on the login screen (click to fill). The gate's job on
+this demo deploy is to require a signed session — keeping crawlers and bots
+away from the app and its AI endpoints — not to keep reviewers out. One shared
+code for a single demo workspace is a deliberate tradeoff (the brief forbids
+real email providers, which rules out magic links; at scale this becomes
+SSO/OIDC) — reasoning in
+[docs/SECURITY.md](docs/SECURITY.md#deliberate-scope-limits-stated-tradeoffs).
+
 ---
 
 ## Quickstart (local)
