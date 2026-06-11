@@ -13,6 +13,8 @@ export function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [code, setCode] = useState('');
+  const [name, setName] = useState('');
+  const [website, setWebsite] = useState(''); // honeypot — humans never see it
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export function LoginForm({
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, name: name.trim() || undefined, website }),
     });
     setBusy(false);
     if (response.ok) {
@@ -80,12 +82,32 @@ export function LoginForm({
             )}
             <form onSubmit={(event) => void submit(event)} className="mt-4">
               <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Your name (optional — for the greeting)"
+                maxLength={60}
+                autoFocus
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-pulse-500 focus:outline-none"
+              />
+              {/* Honeypot: hidden from humans (and screen readers); bots that
+                  auto-fill every field reveal themselves. */}
+              <input
+                type="text"
+                value={website}
+                onChange={(event) => setWebsite(event.target.value)}
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="absolute -left-[9999px] h-0 w-0 opacity-0"
+              />
+              <input
                 type="password"
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 placeholder="Access code"
-                autoFocus
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-pulse-500 focus:outline-none"
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-pulse-500 focus:outline-none"
               />
               <button
                 type="submit"
@@ -97,7 +119,8 @@ export function LoginForm({
             </form>
             {success && (
               <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
-                Access granted — opening your workspace…
+                Access granted{name.trim() ? ` — welcome, ${name.trim()}` : ''} — opening your
+                workspace…
               </p>
             )}
             {error && (

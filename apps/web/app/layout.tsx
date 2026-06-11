@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { authEnabled, SESSION_COOKIE, verifySessionCookieValue } from '../lib/auth';
+import { authEnabled, readSessionCookie, SESSION_COOKIE } from '../lib/auth';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -24,15 +24,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // Logged-out visitors get a bare page (the login card), not the app chrome:
   // showing the workspace nav to someone without a session is misleading even
   // though the middleware blocks every page behind it.
+  let sessionName: string | undefined;
   if (authEnabled()) {
-    const session = (await cookies()).get(SESSION_COOKIE)?.value;
-    if (!(await verifySessionCookieValue(session))) {
+    const session = await readSessionCookie((await cookies()).get(SESSION_COOKIE)?.value);
+    if (!session.valid) {
       return (
         <html lang="en">
           <body>{children}</body>
         </html>
       );
     }
+    sessionName = session.name;
   }
   return (
     <html lang="en">
@@ -56,14 +58,21 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 </Link>
               ))}
               {authEnabled() && (
-                <form action="/api/auth/logout" method="post" className="pt-4">
-                  <button
-                    type="submit"
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-                  >
-                    Sign out
-                  </button>
-                </form>
+                <div className="pt-4">
+                  {sessionName && (
+                    <p className="truncate px-3 text-xs text-slate-400" title={sessionName}>
+                      Signed in as <span className="font-medium text-slate-500">{sessionName}</span>
+                    </p>
+                  )}
+                  <form action="/api/auth/logout" method="post">
+                    <button
+                      type="submit"
+                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                    >
+                      Sign out
+                    </button>
+                  </form>
+                </div>
               )}
             </nav>
           </aside>

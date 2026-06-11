@@ -58,13 +58,31 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   let code: unknown;
+  let name: unknown;
+  let website: unknown;
   try {
-    ({ code } = (await request.json()) as { code?: unknown });
+    ({ code, name, website } = (await request.json()) as {
+      code?: unknown;
+      name?: unknown;
+      website?: unknown;
+    });
   } catch {
     return NextResponse.json({ error: 'invalid_json' }, { status: 400 });
   }
+
+  // Honeypot: the "website" field is invisible to humans; only bots that
+  // auto-fill every input ever populate it. Fail exactly like a wrong code.
+  if (typeof website === 'string' && website.length > 0) {
+    return NextResponse.json({ error: 'invalid_code' }, { status: 401 });
+  }
+
   if (typeof code !== 'string' || code.length === 0 || code.length > 200) {
     return NextResponse.json({ error: 'invalid_code' }, { status: 401 });
+  }
+  // Display name is optional, for the workspace greeting only. It is bounded
+  // here and sanitized + HMAC-signed inside the session cookie.
+  if (name !== undefined && (typeof name !== 'string' || name.length > 60)) {
+    return NextResponse.json({ error: 'invalid_name' }, { status: 400 });
   }
 
   if (!constantTimeEqual(code, accessCode()!)) {
@@ -72,7 +90,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, await createSessionCookieValue(), {
+  response.cookies.set(SESSION_COOKIE, await createSessionCookieValue(name), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
