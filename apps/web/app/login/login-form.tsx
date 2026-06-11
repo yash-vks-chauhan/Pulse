@@ -14,6 +14,7 @@ export function LoginForm({
   const searchParams = useSearchParams();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [disabled, setDisabled] = useState(authDisabled);
 
@@ -33,6 +34,7 @@ export function LoginForm({
         setDisabled(true);
         return;
       }
+      setSuccess(true);
       const next = searchParams.get('next');
       // Same-origin paths only: browsers treat //host and /\host as
       // cross-origin URLs, so a bare startsWith('/') is an open redirect.
@@ -87,12 +89,17 @@ export function LoginForm({
               />
               <button
                 type="submit"
-                disabled={busy || code.length === 0}
+                disabled={busy || success || code.length === 0}
                 className="mt-3 w-full rounded-lg bg-pulse-600 px-4 py-2 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
               >
-                {busy ? 'Checking…' : 'Enter workspace'}
+                {success ? 'Access granted ✓' : busy ? 'Checking…' : 'Enter workspace'}
               </button>
             </form>
+            {success && (
+              <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
+                Access granted — opening your workspace…
+              </p>
+            )}
             {error && (
               <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>
             )}

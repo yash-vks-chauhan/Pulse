@@ -13,9 +13,16 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   if (!authEnabled()) return NextResponse.next();
 
   const { pathname } = request.nextUrl;
-  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
-
   const valid = await verifySessionCookieValue(request.cookies.get(SESSION_COOKIE)?.value);
+
+  if (PUBLIC_PATHS.has(pathname)) {
+    // A signed-in user has no business on the login screen — send them home.
+    if (pathname === '/login' && valid) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    return NextResponse.next();
+  }
+
   if (valid) return NextResponse.next();
 
   if (pathname.startsWith('/api/')) {

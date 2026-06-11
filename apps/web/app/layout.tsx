@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { authEnabled } from '../lib/auth';
+import { authEnabled, SESSION_COOKIE, verifySessionCookieValue } from '../lib/auth';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -19,7 +20,20 @@ const NAV = [
   { href: '/docs', label: 'API Docs' },
 ];
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Logged-out visitors get a bare page (the login card), not the app chrome:
+  // showing the workspace nav to someone without a session is misleading even
+  // though the middleware blocks every page behind it.
+  if (authEnabled()) {
+    const session = (await cookies()).get(SESSION_COOKIE)?.value;
+    if (!(await verifySessionCookieValue(session))) {
+      return (
+        <html lang="en">
+          <body>{children}</body>
+        </html>
+      );
+    }
+  }
   return (
     <html lang="en">
       <body>
