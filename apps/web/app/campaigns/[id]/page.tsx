@@ -1,8 +1,34 @@
 'use client';
 
+import {
+  ArrowLeft,
+  ArrowRight,
+  GitBranch,
+  ListOrdered,
+  Rocket,
+  Sparkles,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Alert, AlertDescription } from '../../../components/ui/alert';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../../components/ui/card';
+import { Skeleton } from '../../../components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../../components/ui/table';
 
 /**
  * Campaign detail — polls stats every 3s while the campaign is running and
@@ -45,18 +71,49 @@ interface Insights {
     failed: number;
     delivery_rate: number;
   }>;
-  revenue: { attributed_orders: number; attributed_revenue: number; attribution_window_hours: number };
+  revenue: {
+    attributed_orders: number;
+    attributed_revenue: number;
+    attribution_window_hours: number;
+  };
   non_engaged_audience: number;
   narrative: { source: 'ai' | 'heuristic'; summary: string; recommendation: string };
   suggested_follow_up: { channel: string; objective: string; estimated_audience: number };
 }
 
 const FUNNEL_STEPS: Array<{ key: keyof Stats['funnel']; label: string; color: string }> = [
-  { key: 'sent', label: 'Sent', color: 'bg-pulse-500' },
-  { key: 'delivered', label: 'Delivered', color: 'bg-sky-500' },
+  { key: 'sent', label: 'Sent', color: 'bg-foreground/70' },
+  { key: 'delivered', label: 'Delivered', color: 'bg-accent' },
   { key: 'engaged', label: 'Opened / read', color: 'bg-violet-500' },
-  { key: 'clicked', label: 'Clicked', color: 'bg-emerald-500' },
+  { key: 'clicked', label: 'Clicked', color: 'bg-success' },
 ];
+
+const STATUS_VARIANT: Record<
+  Stats['campaign']['status'],
+  'secondary' | 'accent' | 'success'
+> = {
+  DRAFT: 'secondary',
+  RUNNING: 'accent',
+  COMPLETED: 'success',
+};
+
+function pct(value: number, base: number): number {
+  return Math.round((value / Math.max(base, 1)) * 100);
+}
+
+function HeroStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          {value}
+        </p>
+        {sub && <p className="mt-1 text-xs text-muted-foreground tabular-nums">{sub}</p>}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
@@ -123,202 +180,306 @@ export default function CampaignDetailPage() {
   }
 
   if (error) {
-    return <p className="mx-auto max-w-3xl rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>;
+    return (
+      <Alert variant="destructive" className="mx-auto max-w-4xl">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
   }
+
   if (!stats) {
-    return <p className="mx-auto max-w-3xl text-sm text-slate-500">Loading…</p>;
+    return (
+      <div className="mx-auto max-w-4xl space-y-4">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-9 w-72" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton key={index} className="h-28" />
+          ))}
+        </div>
+        <Skeleton className="h-64" />
+      </div>
+    );
   }
 
   const base = Math.max(stats.total, 1);
 
   return (
-    <div className="mx-auto max-w-3xl pb-16">
-      <Link href="/campaigns" className="text-sm text-pulse-600 hover:underline">← Campaigns</Link>
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">{stats.campaign.name}</h1>
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            stats.campaign.status === 'RUNNING'
-              ? 'bg-sky-100 text-sky-800'
-              : stats.campaign.status === 'COMPLETED'
-                ? 'bg-emerald-100 text-emerald-800'
-                : 'bg-slate-100 text-slate-700'
-          }`}
-        >
-          {stats.campaign.status}
-        </span>
+    <div className="mx-auto max-w-4xl pb-16">
+      <Link
+        href="/campaigns"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Campaigns
+      </Link>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          {stats.campaign.name}
+        </h1>
+        <Badge variant={STATUS_VARIANT[stats.campaign.status]}>
+          {stats.campaign.status === 'RUNNING' && (
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-accent opacity-75 [animation:ping-soft_1.6s_ease-out_infinite]" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
+            </span>
+          )}
+          {stats.campaign.status.toLowerCase()}
+        </Badge>
         {stats.campaign.status === 'DRAFT' && (
-          <button
-            onClick={() => void launch()}
-            disabled={launching}
-            className="rounded-lg bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
+          <Button onClick={() => void launch()} disabled={launching} size="sm">
+            <Rocket />
             {launching ? 'Launching…' : 'Launch'}
-          </button>
+          </Button>
         )}
       </div>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="mt-1.5 text-sm text-muted-foreground">
         {stats.campaign.audience_snapshot_count.toLocaleString()} customers in the snapshot
-        {stats.campaign.launched_at && ` · launched ${new Date(stats.campaign.launched_at).toLocaleString()}`}
+        {stats.campaign.launched_at &&
+          ` · launched ${new Date(stats.campaign.launched_at).toLocaleString(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })}`}
         {stats.campaign.status === 'RUNNING' && ' · live, refreshing every 3s'}
       </p>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="font-medium">Delivery funnel</h2>
-        <div className="mt-4 space-y-3">
-          {FUNNEL_STEPS.map((step) => {
-            const value = stats.funnel[step.key];
-            return (
-              <div key={step.key}>
-                <div className="flex justify-between text-xs text-slate-500">
-                  <span>{step.label}</span>
-                  <span>
-                    {value.toLocaleString()} ({Math.round((value / base) * 100)}%)
-                  </span>
-                </div>
-                <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className={`h-full rounded-full ${step.color} transition-all duration-700`}
-                    style={{ width: `${Math.min(100, (value / base) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
-          <span>Queued: {stats.funnel.queued.toLocaleString()}</span>
-          <span className="text-rose-600">Failed: {stats.funnel.failed.toLocaleString()}</span>
-          <span>Total communications: {stats.total.toLocaleString()}</span>
-        </div>
+      {/* headline numbers */}
+      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <HeroStat
+          label="Delivered"
+          value={`${pct(stats.funnel.delivered, base)}%`}
+          sub={`${stats.funnel.delivered.toLocaleString()} of ${stats.total.toLocaleString()}`}
+        />
+        <HeroStat
+          label="Opened / read"
+          value={`${pct(stats.funnel.engaged, base)}%`}
+          sub={stats.funnel.engaged.toLocaleString()}
+        />
+        <HeroStat
+          label="Clicked"
+          value={`${pct(stats.funnel.clicked, base)}%`}
+          sub={stats.funnel.clicked.toLocaleString()}
+        />
+        <HeroStat
+          label="Failed"
+          value={stats.funnel.failed.toLocaleString()}
+          sub={stats.funnel.queued > 0 ? `${stats.funnel.queued.toLocaleString()} queued` : 'none queued'}
+        />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="font-medium">Channel failover</h2>
-          {stats.failover.escalations === 0 ? (
-            <p className="mt-2 text-sm text-slate-500">No escalations (yet).</p>
-          ) : (
-            <p className="mt-2 text-sm text-slate-600">
-              <span className="font-semibold text-pulse-700">{stats.failover.escalations.toLocaleString()}</span>{' '}
-              messages escalated to a fallback channel —{' '}
-              <span className="font-semibold text-emerald-700">{stats.failover.rescued.toLocaleString()}</span>{' '}
-              customers rescued (reached after the primary channel failed).
-            </p>
-          )}
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="font-medium">Raw status counts</h2>
-          <div className="mt-2 grid grid-cols-2 gap-x-4 text-sm text-slate-600">
-            {Object.entries(stats.status_counts)
-              .filter(([, count]) => count > 0)
-              .map(([status, count]) => (
-                <div key={status} className="flex justify-between">
-                  <span>{status}</span>
-                  <span className="font-medium">{count.toLocaleString()}</span>
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Delivery funnel</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {FUNNEL_STEPS.map((step) => {
+              const value = stats.funnel[step.key];
+              return (
+                <div key={step.key}>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{step.label}</span>
+                    <span className="tabular-nums">
+                      {value.toLocaleString()} ({pct(value, base)}%)
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full ${step.color} transition-all duration-700`}
+                      style={{ width: `${Math.min(100, (value / base) * 100)}%` }}
+                    />
+                  </div>
                 </div>
-              ))}
+              );
+            })}
           </div>
-        </div>
+        </CardContent>
+      </Card>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader className="flex-row items-center gap-2.5 space-y-0">
+            <GitBranch className="h-4 w-4 text-muted-foreground" />
+            <CardTitle>Channel failover</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.failover.escalations === 0 ? (
+              <p className="text-sm text-muted-foreground">No escalations (yet).</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground tabular-nums">
+                  {stats.failover.escalations.toLocaleString()}
+                </span>{' '}
+                messages escalated to a fallback channel —{' '}
+                <span className="font-semibold text-success tabular-nums">
+                  {stats.failover.rescued.toLocaleString()}
+                </span>{' '}
+                customers rescued (reached after the primary channel failed).
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex-row items-center gap-2.5 space-y-0">
+            <ListOrdered className="h-4 w-4 text-muted-foreground" />
+            <CardTitle>Status breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-muted-foreground">
+              {Object.entries(stats.status_counts)
+                .filter(([, count]) => count > 0)
+                .map(([status, count]) => (
+                  <div key={status} className="flex justify-between">
+                    <span className="lowercase">{status}</span>
+                    <span className="font-medium text-foreground tabular-nums">
+                      {count.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {stats.campaign.status !== 'DRAFT' && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">Insights</h2>
-            <button
-              onClick={() => void loadInsights()}
-              disabled={insightsBusy}
-              className="rounded-lg bg-pulse-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
-            >
+        <Card className="mt-4">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle>Insights</CardTitle>
+            <Button onClick={() => void loadInsights()} disabled={insightsBusy} size="sm">
+              <Sparkles />
               {insightsBusy ? 'Analyzing…' : insights ? 'Refresh insights' : 'Generate insights'}
-            </button>
-          </div>
-          {insightsError && (
-            <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{insightsError}</p>
-          )}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {insightsError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{insightsError}</AlertDescription>
+              </Alert>
+            )}
 
-          {insights && (
-            <div className="mt-4 space-y-4">
-              <div className="rounded-lg bg-pulse-50 p-4 text-sm text-slate-700">
-                <p>
-                  <span className="font-semibold">
-                    {insights.narrative.source === 'ai' ? 'Copilot' : 'Summary'}:
-                  </span>{' '}
-                  {insights.narrative.summary}
+            {insightsBusy && (
+              <div className="space-y-3" aria-live="polite">
+                <p className="shimmer-text text-sm font-medium">
+                  ✦ Reading the event log and writing the story…
                 </p>
-                <p className="mt-2">
-                  <span className="font-semibold">Next:</span> {insights.narrative.recommendation}
-                </p>
+                <Skeleton className="h-20" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Skeleton className="h-16" />
+                  <Skeleton className="h-16" />
+                </div>
               </div>
+            )}
 
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div className="rounded-lg bg-emerald-50 px-4 py-3">
-                  <p className="text-xs text-emerald-700">Attributed revenue ({insights.revenue.attribution_window_hours}h window)</p>
-                  <p className="text-lg font-semibold text-emerald-800">
-                    ₹{insights.revenue.attributed_revenue.toLocaleString('en-IN')}
-                    <span className="ml-2 text-xs font-normal">
-                      {insights.revenue.attributed_orders} orders
+            {!insights && !insightsBusy && !insightsError && (
+              <p className="text-sm text-muted-foreground">
+                Per-channel performance, attributed revenue, and an AI-written
+                recommendation — generated on demand from the live event log.
+              </p>
+            )}
+
+            {insights && !insightsBusy && (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 text-sm leading-relaxed">
+                  <p className="flex items-start gap-2">
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                    <span>
+                      <span className="font-semibold">
+                        {insights.narrative.source === 'ai' ? 'Copilot' : 'Summary'}:
+                      </span>{' '}
+                      {insights.narrative.summary}
                     </span>
                   </p>
-                </div>
-                <div className="rounded-lg bg-slate-50 px-4 py-3">
-                  <p className="text-xs text-slate-500">Reached but never engaged</p>
-                  <p className="text-lg font-semibold text-slate-700">
-                    {insights.non_engaged_audience.toLocaleString()} customers
+                  <p className="mt-2 pl-6">
+                    <span className="font-semibold">Next:</span>{' '}
+                    {insights.narrative.recommendation}
                   </p>
                 </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="rounded-lg bg-success/10 px-4 py-3.5">
+                    <p className="text-xs text-success">
+                      Attributed revenue ({insights.revenue.attribution_window_hours}h window)
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold tracking-tight text-success tabular-nums">
+                      ₹{insights.revenue.attributed_revenue.toLocaleString('en-IN')}
+                      <span className="ml-2 text-xs font-normal">
+                        {insights.revenue.attributed_orders} orders
+                      </span>
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted px-4 py-3.5">
+                    <p className="text-xs text-muted-foreground">Reached but never engaged</p>
+                    <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                      {insights.non_engaged_audience.toLocaleString()}
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        customers
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Channel</TableHead>
+                      <TableHead className="text-right">Attempted</TableHead>
+                      <TableHead className="text-right">Delivered</TableHead>
+                      <TableHead className="text-right">Engaged</TableHead>
+                      <TableHead className="text-right">Clicked</TableHead>
+                      <TableHead className="text-right">Converted</TableHead>
+                      <TableHead className="text-right">Delivery rate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {insights.channels.map((channel) => (
+                      <TableRow key={channel.channel}>
+                        <TableCell className="font-medium">{channel.channel}</TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {channel.attempted.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {channel.delivered.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {channel.engaged.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {channel.clicked.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {channel.converted.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {channel.delivery_rate}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {insights.suggested_follow_up.estimated_audience > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent/30 bg-accent/5 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Follow up with the{' '}
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {insights.suggested_follow_up.estimated_audience.toLocaleString()} customers
+                      </span>{' '}
+                      who never engaged — via{' '}
+                      <span className="font-semibold text-foreground">
+                        {insights.suggested_follow_up.channel}
+                      </span>
+                      .
+                    </p>
+                    <Button onClick={() => void createFollowUp()} disabled={followUpBusy}>
+                      {followUpBusy ? 'Creating…' : 'Create follow-up campaign'}
+                      <ArrowRight />
+                    </Button>
+                  </div>
+                )}
               </div>
-
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-400">
-                    <th className="py-1.5 pr-2 font-medium">Channel</th>
-                    <th className="py-1.5 pr-2 font-medium">Attempted</th>
-                    <th className="py-1.5 pr-2 font-medium">Delivered</th>
-                    <th className="py-1.5 pr-2 font-medium">Engaged</th>
-                    <th className="py-1.5 pr-2 font-medium">Clicked</th>
-                    <th className="py-1.5 pr-2 font-medium">Converted</th>
-                    <th className="py-1.5 font-medium">Delivery rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {insights.channels.map((channel) => (
-                    <tr key={channel.channel} className="border-b border-slate-100 last:border-0">
-                      <td className="py-1.5 pr-2 font-medium">{channel.channel}</td>
-                      <td className="py-1.5 pr-2">{channel.attempted.toLocaleString()}</td>
-                      <td className="py-1.5 pr-2">{channel.delivered.toLocaleString()}</td>
-                      <td className="py-1.5 pr-2">{channel.engaged.toLocaleString()}</td>
-                      <td className="py-1.5 pr-2">{channel.clicked.toLocaleString()}</td>
-                      <td className="py-1.5 pr-2">{channel.converted.toLocaleString()}</td>
-                      <td className="py-1.5">{channel.delivery_rate}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {insights.suggested_follow_up.estimated_audience > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-pulse-200 bg-white p-4">
-                  <p className="text-sm text-slate-600">
-                    Follow up with the{' '}
-                    <span className="font-semibold">
-                      {insights.suggested_follow_up.estimated_audience.toLocaleString()} customers
-                    </span>{' '}
-                    who never engaged — via{' '}
-                    <span className="font-semibold">{insights.suggested_follow_up.channel}</span>.
-                  </p>
-                  <button
-                    onClick={() => void createFollowUp()}
-                    disabled={followUpBusy}
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    {followUpBusy ? 'Creating…' : 'Create follow-up campaign'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

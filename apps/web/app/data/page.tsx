@@ -1,7 +1,11 @@
 'use client';
 
+import { CheckCircle2, FileUp, ShoppingCart, Users, XCircle } from 'lucide-react';
 import Papa from 'papaparse';
 import { useRef, useState } from 'react';
+import { Card, CardContent } from '../../components/ui/card';
+import { Progress } from '../../components/ui/progress';
+import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
 
 /**
  * Reviewer-usable ingest: upload a CSV of customers or orders, preview it,
@@ -128,47 +132,60 @@ export default function DataPage() {
   }
 
   const columns = COLUMNS[datasetType];
+  const progress =
+    state.status === 'uploading' && state.totalRows
+      ? Math.round(((state.uploadedRows ?? 0) / state.totalRows) * 100)
+      : 0;
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-semibold tracking-tight">Data ingest</h1>
-      <p className="mt-2 text-sm text-slate-600">
+      <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
         Upload customers or orders as CSV. Rows are validated server-side, encrypted where they
         contain personal data, and upserted idempotently — re-uploading the same file is always
         safe.
       </p>
 
-      <div className="mt-6 flex gap-2">
-        {(['customers', 'orders'] as const).map((type) => (
-          <button
-            key={type}
-            onClick={() => {
-              setDatasetType(type);
-              setState({ status: 'idle' });
-            }}
-            className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition ${
-              datasetType === type
-                ? 'bg-pulse-600 text-white'
-                : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            {type}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={datasetType}
+        onValueChange={(value) => {
+          setDatasetType(value as DatasetType);
+          setState({ status: 'idle' });
+        }}
+        className="mt-6"
+      >
+        <TabsList>
+          <TabsTrigger value="customers">
+            <Users />
+            Customers
+          </TabsTrigger>
+          <TabsTrigger value="orders">
+            <ShoppingCart />
+            Orders
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 text-sm">
-        <p className="font-medium">Expected columns</p>
-        <p className="mt-1 text-slate-600">
-          Required: <code className="rounded bg-slate-100 px-1">{columns.required.join(', ')}</code>
-        </p>
-        <p className="mt-1 text-slate-600">
-          Optional: <code className="rounded bg-slate-100 px-1">{columns.optional.join(', ')}</code>
-        </p>
-      </div>
+      <Card className="mt-4">
+        <CardContent className="p-5 text-sm">
+          <p className="font-medium">Expected columns</p>
+          <p className="mt-1.5 text-muted-foreground">
+            Required:{' '}
+            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+              {columns.required.join(', ')}
+            </code>
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Optional:{' '}
+            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+              {columns.optional.join(', ')}
+            </code>
+          </p>
+        </CardContent>
+      </Card>
 
       <div
-        className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-10 text-center hover:border-pulse-500"
+        className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-input bg-card p-12 text-center transition-colors hover:border-ring/60 hover:bg-muted/30"
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
@@ -188,55 +205,74 @@ export default function DataPage() {
             event.target.value = '';
           }}
         />
-        <p className="text-sm font-medium text-slate-700">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+          <FileUp className="h-5 w-5 text-muted-foreground" />
+        </span>
+        <p className="mt-4 text-sm font-medium">
           Drop a {datasetType} CSV here, or click to choose a file
         </p>
-        <p className="mt-1 text-xs text-slate-500">Batched in chunks of {BATCH_SIZE} rows</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Batched in chunks of {BATCH_SIZE} rows
+        </p>
       </div>
 
       {state.status !== 'idle' && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5 text-sm">
-          {state.status === 'parsing' && <p>Parsing {state.fileName}…</p>}
-          {state.status === 'uploading' && (
-            <p>
-              Uploading {state.fileName}: {state.uploadedRows}/{state.totalRows} rows…
-            </p>
-          )}
-          {state.status === 'done' && (
-            <div>
-              <p className="font-medium text-emerald-700">
-                ✓ Upserted {state.upserted} of {state.totalRows} rows from {state.fileName}
-              </p>
-              {state.errors && state.errors.length > 0 && (
-                <div className="mt-2 text-rose-700">
-                  <p className="font-medium">{state.errors.length} rows rejected (first shown):</p>
+        <Card className="mt-4">
+          <CardContent className="p-5 text-sm">
+            {state.status === 'parsing' && <p>Parsing {state.fileName}…</p>}
+            {state.status === 'uploading' && (
+              <div>
+                <div className="flex items-baseline justify-between">
+                  <p className="font-medium">Uploading {state.fileName}</p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {state.uploadedRows}/{state.totalRows} rows
+                  </p>
+                </div>
+                <Progress value={progress} className="mt-3" />
+              </div>
+            )}
+            {state.status === 'done' && (
+              <div>
+                <p className="flex items-center gap-2 font-medium text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Upserted {state.upserted} of {state.totalRows} rows from {state.fileName}
+                </p>
+                {state.errors && state.errors.length > 0 && (
+                  <div className="mt-3 text-destructive">
+                    <p className="font-medium">
+                      {state.errors.length} rows rejected (first shown):
+                    </p>
+                    <ul className="mt-1 list-disc pl-5">
+                      {state.errors.map((error, index) => (
+                        <li key={index}>
+                          {error.external_id ?? error.path ?? `row ${index}`}:{' '}
+                          {error.reason ?? error.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            {state.status === 'error' && (
+              <div className="text-destructive">
+                <p className="flex items-center gap-2 font-medium">
+                  <XCircle className="h-4 w-4" />
+                  {state.message}
+                </p>
+                {state.errors && state.errors.length > 0 && (
                   <ul className="mt-1 list-disc pl-5">
                     {state.errors.map((error, index) => (
                       <li key={index}>
-                        {error.external_id ?? error.path ?? `row ${index}`}:{' '}
-                        {error.reason ?? error.message}
+                        {error.path}: {error.message}
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
-            </div>
-          )}
-          {state.status === 'error' && (
-            <div className="text-rose-700">
-              <p className="font-medium">✗ {state.message}</p>
-              {state.errors && state.errors.length > 0 && (
-                <ul className="mt-1 list-disc pl-5">
-                  {state.errors.map((error, index) => (
-                    <li key={index}>
-                      {error.path}: {error.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

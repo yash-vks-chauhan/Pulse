@@ -4,10 +4,11 @@ import { authEnabled, SESSION_COOKIE, verifySessionCookieValue } from './lib/aut
 /**
  * Workspace gate: every page and proxy route requires a valid session cookie
  * when PULSE_ACCESS_CODE is set. Pages redirect to /login; API routes get a
- * 401. The login/logout endpoints and static assets stay public.
+ * 401. The landing page (/ for logged-out visitors), login/logout endpoints,
+ * and static assets stay public.
  */
 
-const PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/auth/logout']);
+const PUBLIC_PATHS = new Set(['/', '/login', '/api/auth/login', '/api/auth/logout']);
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   if (!authEnabled()) return NextResponse.next();
@@ -29,10 +30,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const loginUrl = new URL('/login', request.url);
-  if (pathname !== '/') loginUrl.searchParams.set('next', pathname);
+  loginUrl.searchParams.set('next', pathname);
   return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon.svg).*)'],
 };

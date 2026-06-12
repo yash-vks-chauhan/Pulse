@@ -142,7 +142,7 @@ Campaigns can enable a **failover policy** (e.g., WhatsApp → SMS → Email): i
 
 | Layer | Choice | Why (your defense in the interview) |
 |---|---|---|
-| Frontend | **Next.js 16 (App Router) + Tailwind + shadcn/ui** | Fast to build, Vercel deploy in minutes |
+| Frontend | **Next.js 16 (App Router) + Tailwind (shadcn-style design tokens, light/dark)** | Fast to build, Vercel deploy in minutes; semantic CSS-variable tokens give a consistent theme without a component-library dependency |
 | CRM API | **NestJS (TypeScript)** | You know it from Sentinel; modular structure reads well in code review |
 | Channel Simulator | **Express + TypeScript** (tiny, separate service) | Deliberately lightweight — it's a vendor stand-in |
 | Queue | **BullMQ + Redis (Upstash free tier)** | Real retry/backoff/DLQ semantics without running Kafka; state the "Kafka at scale" tradeoff |

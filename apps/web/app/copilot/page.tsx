@@ -1,7 +1,31 @@
 'use client';
 
+import { Check, Plus, Rocket, Sparkles, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
+import { Skeleton } from '../../components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../components/ui/table';
+import { Textarea } from '../../components/ui/textarea';
+import { cn } from '../../lib/utils';
 
 /**
  * Campaign Copilot — the AI-proposes / human-approves flow:
@@ -55,6 +79,12 @@ const OP_LABELS: Record<string, string> = {
 
 const CHANNELS = ['whatsapp', 'sms', 'email', 'rcs'] as const;
 type Channel = (typeof CHANNELS)[number];
+const CHANNEL_LABELS: Record<Channel, string> = {
+  whatsapp: 'WhatsApp',
+  sms: 'SMS',
+  email: 'Email',
+  rcs: 'RCS',
+};
 
 async function postJson(path: string, body: unknown) {
   const response = await fetch(path, {
@@ -67,10 +97,29 @@ async function postJson(path: string, body: unknown) {
 }
 
 function errorText(status: number, payload: { error?: string; issues?: unknown[] }): string {
+  if (payload.error === 'ai_rate_limited') return 'AI requests are used up for now — every provider in the chain is rate-limited (free-tier quotas). They cool down automatically; try again in a few minutes, or continue manually below.';
   if (status === 503) return 'AI is not configured on the server. Set at least one provider key: OPENROUTER_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or ANTHROPIC_API_KEY. You can still build the segment and write the message manually.';
   if (status === 422) return 'The AI could not produce a valid result for that input — try rephrasing, or build the rules manually.';
   if (status === 429) return 'Rate limit hit — wait a minute and try again.';
   return `Request failed (${payload.error ?? status}).`;
+}
+
+/** "openrouter:openai/gpt-oss-120b:free" → "gpt-oss-120b · via openrouter" */
+function formatModel(servedBy: string): string {
+  const [provider, ...rest] = servedBy.split(':');
+  const model = rest.join(':').split('/').pop()?.replace(/:free$/, '');
+  return model ? `${model} · via ${provider}` : servedBy;
+}
+
+function StepHeader({ step, title }: { step: string; title: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-xs font-semibold text-foreground/80">
+        {step}
+      </span>
+      <h2 className="font-medium">{title}</h2>
+    </div>
+  );
 }
 
 export default function CopilotPage() {
@@ -81,6 +130,7 @@ export default function CopilotPage() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
+  const [segmentModel, setSegmentModel] = useState<string | null>(null);
   const [usedNl, setUsedNl] = useState(false);
 
   // Step 2 — rules + preview + save
@@ -98,6 +148,7 @@ export default function CopilotPage() {
   const [failover, setFailover] = useState<Channel[]>([]);
   const [windowMinutes, setWindowMinutes] = useState(5);
   const [drafts, setDrafts] = useState<string[]>([]);
+  const [draftModel, setDraftModel] = useState<string | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -134,6 +185,7 @@ export default function CopilotPage() {
     }
     setDsl(result.payload.dsl);
     setExplanation(result.payload.explanation);
+    setSegmentModel(typeof result.payload.model === 'string' ? result.payload.model : null);
     setUsedNl(true);
     setSavedSegment(null);
   }
@@ -141,6 +193,7 @@ export default function CopilotPage() {
   function startManually() {
     setDsl({ logic: 'AND', conditions: [{ field: 'order_count', op: 'gte', value: 2 }] });
     setExplanation(null);
+    setSegmentModel(null);
     setUsedNl(false);
     setSavedSegment(null);
   }
@@ -205,6 +258,7 @@ export default function CopilotPage() {
     }
     const variants = (result.payload.variants as Array<{ text: string }>).map((v) => v.text);
     setDrafts(variants);
+    setDraftModel(typeof result.payload.model === 'string' ? result.payload.model : null);
     if (variants.length > 0) setMessage(variants[0]);
   }
 
@@ -240,289 +294,415 @@ export default function CopilotPage() {
   return (
     <div className="mx-auto max-w-3xl pb-16">
       <h1 className="text-2xl font-semibold tracking-tight">Campaign Copilot</h1>
-      <p className="mt-2 text-sm text-slate-600">
+      <p className="mt-1 text-sm text-muted-foreground">
         Describe who you want to reach. The copilot proposes the audience, you approve and edit
         the rules, it drafts the message — you launch.
       </p>
 
       {/* Step 1 — intent */}
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="font-medium">1 · Who do you want to reach?</h2>
-        <textarea
-          value={prompt}
-          onChange={(event) => setPrompt(event.target.value)}
-          maxLength={500}
-          rows={2}
-          placeholder='e.g. "shoppers who bought 2+ times but nothing in 60 days, spend above ₹2,000"'
-          className="mt-3 w-full rounded-lg border border-slate-300 p-3 text-sm focus:border-pulse-500 focus:outline-none"
-        />
-        <div className="mt-3 flex items-center gap-3">
-          <button
-            onClick={() => void proposeSegment()}
-            disabled={aiBusy || prompt.trim().length < 3}
-            className="rounded-lg bg-pulse-600 px-4 py-2 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
-          >
-            {aiBusy ? 'Thinking…' : 'Propose segment'}
-          </button>
-          <button onClick={startManually} className="text-sm font-medium text-pulse-600 hover:underline">
-            or build the rules manually
-          </button>
-        </div>
-        {aiError && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{aiError}</p>}
-        {explanation && (
-          <p className="mt-3 rounded-lg bg-pulse-50 p-3 text-sm text-slate-700">
-            <span className="font-medium">Copilot:</span> {explanation}
-          </p>
-        )}
-      </section>
+      <Card className="mt-6">
+        <CardHeader>
+          <StepHeader step="1" title="Who do you want to reach?" />
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            maxLength={500}
+            rows={2}
+            placeholder='e.g. "shoppers who bought 2+ times but nothing in 60 days, spend above ₹2,000"'
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <Button
+              onClick={() => void proposeSegment()}
+              disabled={aiBusy || prompt.trim().length < 3}
+            >
+              <Sparkles />
+              {aiBusy ? 'Thinking…' : 'Propose segment'}
+            </Button>
+            <Button variant="link" onClick={startManually} className="px-0">
+              or build the rules manually
+            </Button>
+          </div>
+          {aiError && (
+            <Alert variant="warning" className="mt-3">
+              <AlertDescription>{aiError}</AlertDescription>
+            </Alert>
+          )}
+          {aiBusy && (
+            <div className="mt-3 rounded-lg border border-accent/30 bg-accent/5 p-3.5" aria-live="polite">
+              <p className="shimmer-text text-sm font-medium">
+                ✦ Copilot is thinking — proposing your audience…
+              </p>
+              <div className="mt-2.5 space-y-1.5" aria-hidden>
+                <Skeleton className="h-2 w-3/4" />
+                <Skeleton className="h-2 w-1/2" />
+              </div>
+            </div>
+          )}
+          {explanation && !aiBusy && (
+            <div className="mt-3 rounded-lg border border-accent/30 bg-accent/5 p-3.5 text-sm leading-relaxed">
+              <p className="flex items-start gap-2">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                <span>
+                  <span className="font-medium">Copilot:</span> {explanation}
+                </span>
+              </p>
+              {segmentModel && (
+                <p className="mt-1.5 pl-6 text-xs text-muted-foreground">
+                  {formatModel(segmentModel)}
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Step 2 — rules + preview + save */}
       {dsl && (
-        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-medium">2 · Review the audience rules</h2>
-            <div className="flex overflow-hidden rounded-lg ring-1 ring-slate-200">
+        <Card className="mt-4">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <StepHeader step="2" title="Review the audience rules" />
+            <div className="flex overflow-hidden rounded-lg ring-1 ring-border">
               {(['AND', 'OR'] as const).map((logic) => (
                 <button
                   key={logic}
                   onClick={() => setDsl({ ...dsl, logic })}
-                  className={`px-3 py-1 text-xs font-semibold ${dsl.logic === logic ? 'bg-pulse-600 text-white' : 'bg-white text-slate-600'}`}
+                  className={cn(
+                    'px-3 py-1 text-xs font-semibold transition-colors',
+                    dsl.logic === logic
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card text-muted-foreground hover:text-foreground',
+                  )}
                 >
                   {logic === 'AND' ? 'Match ALL' : 'Match ANY'}
                 </button>
               ))}
             </div>
-          </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {dsl.conditions.map((condition, index) => {
+                const def = FIELDS[condition.field] ?? FIELDS.total_spend;
+                return (
+                  <div key={index} className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value={condition.field}
+                      onValueChange={(field) => {
+                        const next = FIELDS[field];
+                        updateCondition(index, { field, op: next.defaultOp, value: next.defaultValue });
+                      }}
+                    >
+                      <SelectTrigger className="w-44">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(FIELDS).map(([key, value]) => (
+                          <SelectItem key={key} value={key}>
+                            {value.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={condition.op}
+                      onValueChange={(op) => updateCondition(index, { ...condition, op })}
+                    >
+                      <SelectTrigger className="w-44">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {def.ops.map((op) => (
+                          <SelectItem key={op} value={op}>
+                            {OP_LABELS[op]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type={def.kind === 'text' ? 'text' : 'number'}
+                      value={condition.value}
+                      min={0}
+                      onChange={(event) =>
+                        updateCondition(index, {
+                          ...condition,
+                          value: def.kind === 'text' ? event.target.value : Number(event.target.value),
+                        })
+                      }
+                      className="w-32"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeCondition(index)}
+                      aria-label="Remove condition"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            <Button variant="ghost" size="sm" onClick={addCondition} className="mt-3 text-accent">
+              <Plus />
+              Add condition
+            </Button>
 
-          <div className="mt-4 space-y-2">
-            {dsl.conditions.map((condition, index) => {
-              const def = FIELDS[condition.field] ?? FIELDS.total_spend;
-              return (
-                <div key={index} className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={condition.field}
-                    onChange={(event) => {
-                      const field = event.target.value;
-                      const next = FIELDS[field];
-                      updateCondition(index, { field, op: next.defaultOp, value: next.defaultValue });
-                    }}
-                    className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-                  >
-                    {Object.entries(FIELDS).map(([key, value]) => (
-                      <option key={key} value={key}>{value.label}</option>
+            <div className="mt-4 rounded-lg border bg-muted/40 p-4">
+              <p className="text-sm font-medium tabular-nums">
+                {previewBusy
+                  ? 'Counting…'
+                  : preview
+                    ? `${preview.count.toLocaleString()} customers match`
+                    : 'Add a condition to preview the audience'}
+              </p>
+              {preview && preview.sample.length > 0 && (
+                <Table className="mt-2">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="h-8 px-2">Name</TableHead>
+                      <TableHead className="h-8 px-2">City</TableHead>
+                      <TableHead className="h-8 px-2 text-right">Spend</TableHead>
+                      <TableHead className="h-8 px-2 text-right">Orders</TableHead>
+                      <TableHead className="h-8 px-2 text-right">Last order</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {preview.sample.map((customer) => (
+                      <TableRow key={customer.id}>
+                        <TableCell className="px-2 py-1.5">{customer.name}</TableCell>
+                        <TableCell className="px-2 py-1.5 text-muted-foreground">
+                          {customer.city ?? '—'}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-muted-foreground tabular-nums">
+                          ₹{Number(customer.totalSpend).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-muted-foreground tabular-nums">
+                          {customer.orderCount}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-muted-foreground tabular-nums">
+                          {customer.lastOrderAt
+                            ? new Date(customer.lastOrderAt).toLocaleDateString()
+                            : 'never'}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </select>
-                  <select
-                    value={condition.op}
-                    onChange={(event) => updateCondition(index, { ...condition, op: event.target.value })}
-                    className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-                  >
-                    {def.ops.map((op) => (
-                      <option key={op} value={op}>{OP_LABELS[op]}</option>
-                    ))}
-                  </select>
-                  <input
-                    type={def.kind === 'text' ? 'text' : 'number'}
-                    value={condition.value}
-                    min={0}
-                    onChange={(event) =>
-                      updateCondition(index, {
-                        ...condition,
-                        value: def.kind === 'text' ? event.target.value : Number(event.target.value),
-                      })
-                    }
-                    className="w-36 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
-                  />
-                  <button
-                    onClick={() => removeCondition(index)}
-                    className="text-sm text-slate-400 hover:text-rose-600"
-                    aria-label="Remove condition"
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <button onClick={addCondition} className="mt-3 text-sm font-medium text-pulse-600 hover:underline">
-            + Add condition
-          </button>
+                  </TableBody>
+                </Table>
+              )}
+            </div>
 
-          <div className="mt-4 rounded-lg bg-slate-50 p-4">
-            <p className="text-sm font-medium">
-              {previewBusy ? 'Counting…' : preview ? `${preview.count.toLocaleString()} customers match` : 'Add a condition to preview the audience'}
-            </p>
-            {preview && preview.sample.length > 0 && (
-              <table className="mt-3 w-full text-left text-xs text-slate-600">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-400">
-                    <th className="py-1 pr-2 font-medium">Name</th>
-                    <th className="py-1 pr-2 font-medium">City</th>
-                    <th className="py-1 pr-2 font-medium">Spend</th>
-                    <th className="py-1 pr-2 font-medium">Orders</th>
-                    <th className="py-1 font-medium">Last order</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.sample.map((customer) => (
-                    <tr key={customer.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-1 pr-2">{customer.name}</td>
-                      <td className="py-1 pr-2">{customer.city ?? '—'}</td>
-                      <td className="py-1 pr-2">₹{Number(customer.totalSpend).toLocaleString()}</td>
-                      <td className="py-1 pr-2">{customer.orderCount}</td>
-                      <td className="py-1">
-                        {customer.lastOrderAt ? new Date(customer.lastOrderAt).toLocaleDateString() : 'never'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Input
+                value={segmentName}
+                onChange={(event) => setSegmentName(event.target.value)}
+                maxLength={200}
+                placeholder="Segment name (e.g. Lapsed big spenders)"
+                className="w-72"
+              />
+              <Button
+                onClick={() => void saveSegment()}
+                disabled={saveBusy || segmentName.trim().length === 0 || dsl.conditions.length === 0}
+              >
+                {saveBusy ? 'Saving…' : savedSegment ? 'Saved — save again' : 'Save segment'}
+              </Button>
+              {savedSegment && (
+                <span className="flex items-center gap-1.5 text-sm text-success">
+                  <Check className="h-4 w-4" />
+                  Segment “{savedSegment.name}” saved.
+                </span>
+              )}
+            </div>
+            {saveError && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertDescription>{saveError}</AlertDescription>
+              </Alert>
             )}
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <input
-              value={segmentName}
-              onChange={(event) => setSegmentName(event.target.value)}
-              maxLength={200}
-              placeholder="Segment name (e.g. Lapsed big spenders)"
-              className="w-72 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-            <button
-              onClick={() => void saveSegment()}
-              disabled={saveBusy || segmentName.trim().length === 0 || dsl.conditions.length === 0}
-              className="rounded-lg bg-pulse-600 px-4 py-2 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
-            >
-              {saveBusy ? 'Saving…' : savedSegment ? 'Saved ✓ (save again)' : 'Save segment'}
-            </button>
-            {savedSegment && <span className="text-sm text-emerald-700">Segment “{savedSegment.name}” saved.</span>}
-          </div>
-          {saveError && <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{saveError}</p>}
-        </section>
+          </CardContent>
+        </Card>
       )}
 
       {/* Step 3 — message + channels + launch */}
       {savedSegment && (
-        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="font-medium">3 · Message & channel plan</h2>
+        <Card className="mt-4">
+          <CardHeader>
+            <StepHeader step="3" title="Message & channel plan" />
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="objective">Campaign objective</Label>
+            <Textarea
+              id="objective"
+              value={objective}
+              onChange={(event) => setObjective(event.target.value)}
+              maxLength={500}
+              rows={2}
+              placeholder='e.g. "Win them back with 15% off their favourite roast, code BREW15"'
+              className="mt-1.5"
+            />
 
-          <label className="mt-3 block text-sm font-medium text-slate-700">Campaign objective</label>
-          <textarea
-            value={objective}
-            onChange={(event) => setObjective(event.target.value)}
-            maxLength={500}
-            rows={2}
-            placeholder='e.g. "Win them back with 15% off their favourite roast, code BREW15"'
-            className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm"
-          />
-
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Primary channel</label>
-              <select
-                value={primary}
-                onChange={(event) => {
-                  const channel = event.target.value as Channel;
-                  setPrimary(channel);
-                  setFailover((current) => current.filter((c) => c !== channel));
-                }}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              >
-                {CHANNELS.map((channel) => (
-                  <option key={channel} value={channel}>{channel}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <span className="block text-sm font-medium text-slate-700">Failover (in click order)</span>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {CHANNELS.filter((channel) => channel !== primary).map((channel) => {
-                  const position = failover.indexOf(channel);
-                  return (
-                    <button
-                      key={channel}
-                      onClick={() => toggleFailover(channel)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${
-                        position >= 0
-                          ? 'bg-pulse-600 text-white ring-pulse-600'
-                          : 'bg-white text-slate-600 ring-slate-300'
-                      }`}
-                    >
-                      {position >= 0 ? `${position + 1}. ` : ''}{channel}
-                    </button>
-                  );
-                })}
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <Label>Primary channel</Label>
+                <Select
+                  value={primary}
+                  onValueChange={(value) => {
+                    const channel = value as Channel;
+                    setPrimary(channel);
+                    setFailover((current) => current.filter((c) => c !== channel));
+                  }}
+                >
+                  <SelectTrigger className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHANNELS.map((channel) => (
+                      <SelectItem key={channel} value={channel}>
+                        {CHANNEL_LABELS[channel]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Failover (in click order)</Label>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {CHANNELS.filter((channel) => channel !== primary).map((channel) => {
+                    const position = failover.indexOf(channel);
+                    return (
+                      <button
+                        key={channel}
+                        onClick={() => toggleFailover(channel)}
+                        className={cn(
+                          'rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-colors',
+                          position >= 0
+                            ? 'bg-primary text-primary-foreground ring-primary'
+                            : 'bg-card text-muted-foreground ring-border hover:text-foreground',
+                        )}
+                      >
+                        {position >= 0 ? `${position + 1} · ` : ''}
+                        {CHANNEL_LABELS[channel]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="window">Failover window (min)</Label>
+                <Input
+                  id="window"
+                  type="number"
+                  min={5}
+                  max={1440}
+                  value={windowMinutes}
+                  onChange={(event) => setWindowMinutes(Number(event.target.value))}
+                  className="mt-1.5"
+                />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Failover window (min)</label>
-              <input
-                type="number"
-                min={5}
-                max={1440}
-                value={windowMinutes}
-                onChange={(event) => setWindowMinutes(Number(event.target.value))}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
-              />
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() => void draftMessages()}
+                disabled={draftBusy || objective.trim().length < 3}
+              >
+                <Sparkles />
+                {draftBusy ? 'Drafting…' : 'Draft message with AI'}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                or write it yourself below — merge tags: {'{{name}}'}, {'{{city}}'}
+              </span>
             </div>
-          </div>
+            {draftError && (
+              <Alert variant="warning" className="mt-3">
+                <AlertDescription>{draftError}</AlertDescription>
+              </Alert>
+            )}
 
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={() => void draftMessages()}
-              disabled={draftBusy || objective.trim().length < 3}
-              className="rounded-lg bg-pulse-600 px-4 py-2 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
-            >
-              {draftBusy ? 'Drafting…' : 'Draft message with AI'}
-            </button>
-            <span className="text-xs text-slate-500">or write it yourself below — merge tags: {'{{name}}'}, {'{{city}}'}</span>
-          </div>
-          {draftError && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{draftError}</p>}
+            {draftBusy && (
+              <div className="mt-4" aria-live="polite">
+                <p className="shimmer-text text-sm font-medium">
+                  ✦ Drafting {CHANNEL_LABELS[primary]} variants…
+                </p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3" aria-hidden>
+                  {[0, 1, 2].map((index) => (
+                    <div key={index} className="space-y-1.5 rounded-lg border p-3">
+                      <Skeleton className="h-2 w-full" />
+                      <Skeleton className="h-2 w-5/6" />
+                      <Skeleton className="h-2 w-2/3" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          {drafts.length > 0 && (
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {drafts.map((draft, index) => (
-                <button
-                  key={index}
-                  onClick={() => setMessage(draft)}
-                  className={`rounded-lg p-3 text-left text-xs leading-relaxed ring-1 transition ${
-                    message === draft ? 'bg-pulse-50 ring-pulse-500' : 'bg-white ring-slate-200 hover:ring-pulse-300'
-                  }`}
-                >
-                  {draft}
-                </button>
-              ))}
-            </div>
-          )}
+            {drafts.length > 0 && !draftBusy && (
+              <div className="mt-4">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {drafts.map((draft, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setMessage(draft)}
+                      className={cn(
+                        'relative rounded-lg p-3 text-left text-xs leading-relaxed ring-1 transition',
+                        message === draft
+                          ? 'bg-accent/5 ring-2 ring-accent'
+                          : 'bg-card ring-border hover:ring-accent/50',
+                      )}
+                    >
+                      {message === draft && (
+                        <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                          <Check className="h-3 w-3" />
+                        </span>
+                      )}
+                      {draft}
+                    </button>
+                  ))}
+                </div>
+                {draftModel && (
+                  <p className="mt-2 text-xs text-muted-foreground">{formatModel(draftModel)}</p>
+                )}
+              </div>
+            )}
 
-          <label className="mt-4 block text-sm font-medium text-slate-700">Message ({primary})</label>
-          <textarea
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            maxLength={2000}
-            rows={3}
-            placeholder="Hi {{name}}, we miss you…"
-            className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm"
-          />
-
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <input
-              value={campaignName}
-              onChange={(event) => setCampaignName(event.target.value)}
-              maxLength={200}
-              placeholder="Campaign name"
-              className="w-72 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            <Label htmlFor="message" className="mt-5 block">
+              Message ({CHANNEL_LABELS[primary]})
+            </Label>
+            <Textarea
+              id="message"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              maxLength={2000}
+              rows={3}
+              placeholder="Hi {{name}}, we miss you…"
+              className="mt-1.5"
             />
-            <button
-              onClick={() => void createAndLaunch()}
-              disabled={launchBusy || campaignName.trim().length === 0 || message.trim().length === 0}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {launchBusy ? 'Launching…' : `Create & launch to ${preview ? preview.count.toLocaleString() : '…'} customers`}
-            </button>
-          </div>
-          {launchError && <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{launchError}</p>}
-        </section>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Input
+                value={campaignName}
+                onChange={(event) => setCampaignName(event.target.value)}
+                maxLength={200}
+                placeholder="Campaign name"
+                className="w-72"
+              />
+              <Button
+                onClick={() => void createAndLaunch()}
+                disabled={launchBusy || campaignName.trim().length === 0 || message.trim().length === 0}
+              >
+                <Rocket />
+                {launchBusy
+                  ? 'Launching…'
+                  : `Create & launch to ${preview ? preview.count.toLocaleString() : '…'} customers`}
+              </Button>
+            </div>
+            {launchError && (
+              <Alert variant="destructive" className="mt-3">
+                <AlertDescription>{launchError}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

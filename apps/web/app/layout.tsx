@@ -1,84 +1,115 @@
+import '@fontsource/instrument-serif/400.css';
+import '@fontsource/instrument-serif/400-italic.css';
+import { GeistMono } from 'geist/font/mono';
+import { GeistSans } from 'geist/font/sans';
+import { LogOut } from 'lucide-react';
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { PulseLogo } from '../components/logo';
+import { MobileNav, SidebarNav } from '../components/sidebar-nav';
+import { ThemeToggle } from '../components/theme-toggle';
 import { authEnabled, readSessionCookie, SESSION_COOKIE } from '../lib/auth';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Pulse — Campaign Copilot',
-  description: 'AI-native mini CRM for reaching shoppers',
+  title: {
+    default: 'Pulse — AI-native campaign copilot',
+    template: '%s · Pulse',
+  },
+  description:
+    'Describe the customers you want to win back — Pulse proposes the audience, drafts the message, executes across channels with automatic failover, and learns from the results.',
 };
 
-const NAV = [
-  { href: '/', label: 'Overview' },
-  { href: '/copilot', label: 'Copilot' },
-  { href: '/campaigns', label: 'Campaigns' },
-  { href: '/segments', label: 'Segments' },
-  { href: '/simulator', label: 'Chaos panel' },
-  { href: '/data', label: 'Data' },
-  { href: '/docs', label: 'API Docs' },
-];
+// Runs before first paint: saved choice wins, otherwise follow the OS.
+// Inline (not a module) so there is never a flash of the wrong theme.
+const THEME_INIT = `try{var t=localStorage.getItem('pulse-theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}`;
+
+function Shell({ children }: { children: ReactNode }) {
+  return (
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
+      <body className="font-sans">{children}</body>
+    </html>
+  );
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
+}
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  // Logged-out visitors get a bare page (the login card), not the app chrome:
-  // showing the workspace nav to someone without a session is misleading even
-  // though the middleware blocks every page behind it.
+  // Logged-out visitors get a bare page (landing or login card), not the app
+  // chrome: showing the workspace nav to someone without a session is
+  // misleading even though the middleware blocks every page behind it.
   let sessionName: string | undefined;
   if (authEnabled()) {
     const session = await readSessionCookie((await cookies()).get(SESSION_COOKIE)?.value);
     if (!session.valid) {
-      return (
-        <html lang="en">
-          <body>{children}</body>
-        </html>
-      );
+      return <Shell>{children}</Shell>;
     }
     sessionName = session.name;
   }
+
   return (
-    <html lang="en">
-      <body>
-        <div className="flex min-h-screen">
-          <aside className="w-60 shrink-0 border-r border-slate-200 bg-white px-4 py-6">
-            <Link href="/" className="flex items-center gap-2 px-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pulse-600 font-bold text-white">
-                P
+    <Shell>
+      <div className="flex min-h-screen">
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r px-3 py-5 md:flex">
+          <Link href="/" className="px-3">
+            <PulseLogo />
+          </Link>
+          <div className="mt-7 flex-1">
+            <SidebarNav />
+          </div>
+          <div className="border-t pt-3">
+            <div className="flex items-center gap-2.5 px-3 py-1.5">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground/80">
+                {initials(sessionName ?? 'Reviewer')}
               </span>
-              <span className="text-lg font-semibold tracking-tight">Pulse</span>
-            </Link>
-            <nav className="mt-8 space-y-1">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-pulse-50 hover:text-pulse-700"
+              <span
+                className="min-w-0 flex-1 truncate text-sm font-medium"
+                title={sessionName ?? 'Reviewer'}
+              >
+                {sessionName ?? 'Reviewer'}
+              </span>
+              <ThemeToggle />
+            </div>
+            {authEnabled() && (
+              <form action="/api/auth/logout" method="post">
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
                 >
-                  {item.label}
-                </Link>
-              ))}
-              {authEnabled() && (
-                <div className="pt-4">
-                  {sessionName && (
-                    <p className="truncate px-3 text-xs text-slate-400" title={sessionName}>
-                      Signed in as <span className="font-medium text-slate-500">{sessionName}</span>
-                    </p>
-                  )}
-                  <form action="/api/auth/logout" method="post">
-                    <button
-                      type="submit"
-                      className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-                    >
-                      Sign out
-                    </button>
-                  </form>
-                </div>
-              )}
-            </nav>
-          </aside>
-          <main className="flex-1 px-8 py-8">{children}</main>
+                  <LogOut className="h-4 w-4 text-muted-foreground/70" />
+                  Sign out
+                </button>
+              </form>
+            )}
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Mobile top bar */}
+          <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-background/80 px-4 py-3 backdrop-blur md:hidden">
+            <Link href="/">
+              <PulseLogo markClassName="h-7 w-7" wordClassName="text-base" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <MobileNav />
+            </div>
+          </header>
+          <main className="flex-1 px-5 py-8 sm:px-8">{children}</main>
         </div>
-      </body>
-    </html>
+      </div>
+    </Shell>
   );
 }

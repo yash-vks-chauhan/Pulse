@@ -2,6 +2,274 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+/*
+ * Design tokens — shadcn-style semantic CSS variables (HSL channels so
+ * Tailwind opacity modifiers like bg-success/10 keep working).
+ * Monochrome zinc palette: color is reserved for status and data; the one
+ * accent (blue) marks links and interactive emphasis only.
+ */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 87%;
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --accent: 221 83% 53%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 51%;
+  --success: 161 94% 30%;
+  --warning: 32 95% 44%;
+  --ring: 240 5.9% 10%;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 5.9% 7%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 5.9% 6%;
+  --popover-foreground: 0 0% 98%;
+  --muted: 240 3.7% 13%;
+  --muted-foreground: 240 5% 64.9%;
+  --secondary: 240 3.7% 13%;
+  --secondary-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 19%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 240 5.9% 10%;
+  --accent: 217 91% 65%;
+  --accent-foreground: 240 10% 3.9%;
+  --destructive: 0 84% 60%;
+  --success: 160 84% 45%;
+  --warning: 38 92% 55%;
+  --ring: 240 5% 65%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  ::selection {
+    @apply bg-accent/20;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion primitives — used by components/motion/*. All entrance animations
+ * respect prefers-reduced-motion (everything snaps to its final state).
+ * ------------------------------------------------------------------------- */
+
+/* AI "thinking" treatment: a light sweep across the text while a model call
+ * is in flight. Token-driven so it adapts to light/dark. */
+@keyframes shimmer-sweep {
+  from {
+    background-position: 200% center;
+  }
+  to {
+    background-position: -200% center;
+  }
+}
+
+/* Staggered word reveal (SplitText) */
+@keyframes word-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.6em);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Soft blur-in for paragraphs (BlurText) */
+@keyframes blur-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+/* Slow drifting aurora blobs behind the landing hero */
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(4%, -6%, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-5%, 4%, 0) scale(0.95);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Gentle float for the hero product frame */
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Live indicator pulse */
+@keyframes ping-soft {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .shimmer-text {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted-foreground)) 35%,
+      hsl(var(--foreground)) 50%,
+      hsl(var(--muted-foreground)) 65%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer-sweep 1.8s linear infinite;
+  }
+
+  /* Editorial serif accent (Instrument Serif) for landing headlines */
+  .font-editorial {
+    font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    letter-spacing: -0.01em;
+  }
+
+  /* Subtle dot-grid surface for hero/sections; fades out via mask */
+  .bg-dot-grid {
+    background-image: radial-gradient(
+      hsl(var(--foreground) / 0.08) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+  }
+  .mask-fade-edges {
+    -webkit-mask-image: radial-gradient(
+      ellipse 75% 65% at 50% 35%,
+      black 45%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 75% 65% at 50% 35%,
+      black 45%,
+      transparent 100%
+    );
+  }
+
+  /* Hairline ring used on framed previews (1px crisp border + soft shadow) */
+  .frame-ring {
+    box-shadow:
+      0 0 0 1px hsl(var(--border)),
+      0 1px 2px hsl(var(--foreground) / 0.04),
+      0 12px 40px -12px hsl(var(--foreground) / 0.18);
+  }
+
+  .animate-float {
+    animation: float-y 7s ease-in-out infinite;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* In-view reveal: elements start hidden, .in-view triggers the transition.
+ * Driven by components/motion/reveal.tsx (IntersectionObserver). */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.split-word {
+  display: inline-block;
+  opacity: 0;
+  animation: word-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--word-delay, 0ms);
+}
+
+.blur-in {
+  opacity: 0;
+  animation: blur-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--blur-delay, 0ms);
+}
+
+/* Funnel bars that grow when their Reveal parent enters the viewport */
+.funnel-fill {
+  width: 0;
+  transition: width 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--bar-delay, 0ms);
+}
+.in-view .funnel-fill {
+  width: var(--bar-w);
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.5;
+  animation: aurora-drift 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .split-word,
+  .blur-in {
+    animation: none;
+    transition: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .aurora-blob,
+  .animate-float,
+  .shimmer-text {
+    animation: none;
+  }
 }

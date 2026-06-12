@@ -1,4 +1,17 @@
+import { ChevronRight, Plus, Send } from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent } from '../../components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../components/ui/table';
 
 /**
  * Campaign list — server component. Fetches the CRM API directly with the
@@ -32,74 +45,134 @@ async function fetchCampaigns(): Promise<Campaign[] | null> {
   }
 }
 
-const STATUS_STYLES: Record<Campaign['status'], string> = {
-  DRAFT: 'bg-slate-100 text-slate-700',
-  RUNNING: 'bg-sky-100 text-sky-800',
-  COMPLETED: 'bg-emerald-100 text-emerald-800',
+const STATUS_VARIANT: Record<Campaign['status'], 'secondary' | 'accent' | 'success'> = {
+  DRAFT: 'secondary',
+  RUNNING: 'accent',
+  COMPLETED: 'success',
 };
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+          {value}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default async function CampaignsPage() {
   const campaigns = await fetchCampaigns();
 
+  const total = campaigns?.length ?? 0;
+  const reached =
+    campaigns?.reduce((sum, campaign) => sum + campaign.audienceSnapshotCount, 0) ?? 0;
+  const running = campaigns?.filter((campaign) => campaign.status === 'RUNNING').length ?? 0;
+
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
-        <Link
-          href="/copilot"
-          className="rounded-lg bg-pulse-600 px-4 py-2 text-sm font-medium text-white hover:bg-pulse-700"
-        >
-          New campaign
-        </Link>
+    <div className="mx-auto max-w-5xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Every send, live and historical — stats derive from the event log.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/copilot">
+            <Plus />
+            New campaign
+          </Link>
+        </Button>
       </div>
 
       {campaigns === null && (
-        <p className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-          Could not reach the CRM API.
-        </p>
+        <Alert variant="destructive" className="mt-6">
+          <AlertDescription>Could not reach the CRM API.</AlertDescription>
+        </Alert>
       )}
 
-      {campaigns !== null && campaigns.length === 0 && (
-        <p className="mt-6 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-          No campaigns yet — start one in the <Link href="/copilot" className="font-medium text-pulse-600 hover:underline">Copilot</Link>.
-        </p>
-      )}
+      {campaigns !== null && (
+        <>
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatTile label="Campaigns" value={total.toLocaleString()} />
+            <StatTile label="Customers reached" value={reached.toLocaleString()} />
+            <StatTile label="Running now" value={running.toLocaleString()} />
+          </div>
 
-      {campaigns !== null && campaigns.length > 0 && (
-        <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs text-slate-400">
-              <tr>
-                <th className="px-4 py-3 font-medium">Campaign</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Audience</th>
-                <th className="px-4 py-3 font-medium">Launched</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((campaign) => (
-                <tr key={campaign.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <Link href={`/campaigns/${campaign.id}`} className="font-medium text-pulse-700 hover:underline">
-                      {campaign.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[campaign.status]}`}>
-                      {campaign.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {campaign.audienceSnapshotCount > 0 ? campaign.audienceSnapshotCount.toLocaleString() : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {campaign.launchedAt ? new Date(campaign.launchedAt).toLocaleString() : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          {campaigns.length === 0 ? (
+            <Card className="mt-4">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+                  <Send className="h-5 w-5 text-muted-foreground" />
+                </span>
+                <p className="mt-4 font-medium">No campaigns yet</p>
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
+                  Describe an audience in the Copilot and launch your first
+                  campaign in under a minute.
+                </p>
+                <Button asChild className="mt-5">
+                  <Link href="/copilot">Start in the Copilot</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="mt-4 overflow-hidden py-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Campaign</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Audience</TableHead>
+                    <TableHead className="text-right">Launched</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((campaign) => (
+                    <TableRow key={campaign.id} className="group">
+                      <TableCell>
+                        <Link
+                          href={`/campaigns/${campaign.id}`}
+                          className="font-medium hover:text-accent"
+                        >
+                          {campaign.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={STATUS_VARIANT[campaign.status]}>
+                          {campaign.status === 'RUNNING' && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                          )}
+                          {campaign.status.toLowerCase()}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">
+                        {campaign.audienceSnapshotCount > 0
+                          ? campaign.audienceSnapshotCount.toLocaleString()
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">
+                        {campaign.launchedAt
+                          ? new Date(campaign.launchedAt).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

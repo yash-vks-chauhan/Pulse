@@ -1,6 +1,17 @@
 'use client';
 
+import { Check, FlaskConical, Mail, MessageSquare, Phone, Radio } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Button } from '../../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
+import { Skeleton } from '../../components/ui/skeleton';
+import { Slider } from '../../components/ui/slider';
 
 /**
  * Chaos panel — live dials for the channel simulator. Crank a channel's
@@ -11,6 +22,16 @@ import { useEffect, useState } from 'react';
 
 type Channel = 'whatsapp' | 'sms' | 'email' | 'rcs';
 const CHANNELS: Channel[] = ['whatsapp', 'sms', 'email', 'rcs'];
+
+const CHANNEL_META: Record<
+  Channel,
+  { label: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  whatsapp: { label: 'WhatsApp', icon: MessageSquare },
+  sms: { label: 'SMS', icon: Phone },
+  email: { label: 'Email', icon: Mail },
+  rcs: { label: 'RCS', icon: Radio },
+};
 
 interface ChannelProfile {
   latencyMinMs: number;
@@ -32,26 +53,34 @@ function PercentSlider({
   label,
   value,
   onChange,
+  accent = false,
 }: {
   label: string;
   value: number;
   onChange: (next: number) => void;
+  accent?: boolean;
 }) {
+  const pct = Math.round(value * 100);
   return (
-    <label className="block text-xs text-slate-600">
-      <span className="flex justify-between">
-        <span>{label}</span>
-        <span className="font-semibold">{Math.round(value * 100)}%</span>
-      </span>
-      <input
-        type="range"
+    <div>
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span
+          className={`font-semibold tabular-nums ${accent && pct >= 30 ? 'text-warning' : 'text-foreground'}`}
+        >
+          {pct}%
+        </span>
+      </div>
+      <Slider
+        value={[pct]}
         min={0}
         max={100}
-        value={Math.round(value * 100)}
-        onChange={(event) => onChange(Number(event.target.value) / 100)}
-        className="mt-1 w-full accent-pulse-600"
+        step={1}
+        onValueChange={([next]) => onChange(next / 100)}
+        className="mt-2"
+        aria-label={label}
       />
-    </label>
+    </div>
   );
 }
 
@@ -102,16 +131,30 @@ export default function SimulatorPage() {
   }
 
   if (error && !config) {
-    return <p className="mx-auto max-w-3xl rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>;
+    return (
+      <Alert variant="destructive" className="mx-auto max-w-3xl">
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
   }
   if (!config) {
-    return <p className="mx-auto max-w-3xl text-sm text-slate-500">Loading…</p>;
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Skeleton className="h-9 w-72" />
+        <Skeleton className="h-4 w-96" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((index) => (
+            <Skeleton key={index} className="h-56" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="mx-auto max-w-3xl pb-16">
-      <h1 className="text-2xl font-semibold tracking-tight">Simulator chaos panel</h1>
-      <p className="mt-2 text-sm text-slate-600">
+      <h1 className="text-2xl font-semibold tracking-tight">Chaos panel</h1>
+      <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
         These dials change the vendor simulator live — crank a failure rate during a running
         campaign and watch retries, the DLQ, and channel failover absorb it.
       </p>
@@ -119,18 +162,26 @@ export default function SimulatorPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {CHANNELS.map((channel) => {
           const profile = config.channels[channel];
+          const meta = CHANNEL_META[channel];
+          const Icon = meta.icon;
           return (
-            <div key={channel} className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-medium capitalize">{channel}</h2>
-                <span className="text-xs text-slate-400">
+            <Card key={channel}>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted">
+                    <Icon className="h-4 w-4 text-foreground/70" />
+                  </span>
+                  <CardTitle>{meta.label}</CardTitle>
+                </div>
+                <span className="font-mono text-xs text-muted-foreground">
                   {profile.ratePerSec}/s · {profile.latencyMinMs}–{profile.latencyMaxMs}ms
                 </span>
-              </div>
-              <div className="mt-3 space-y-3">
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <PercentSlider
                   label="Failure rate"
                   value={profile.failureRate}
+                  accent
                   onChange={(failureRate) => updateChannel(channel, { failureRate })}
                 />
                 <PercentSlider
@@ -143,56 +194,68 @@ export default function SimulatorPage() {
                   value={profile.clickRate}
                   onChange={(clickRate) => updateChannel(channel, { clickRate })}
                 />
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="font-medium">Callback chaos</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <PercentSlider
-            label="Duplicate callbacks"
-            value={config.chaos.duplicateRate}
-            onChange={(duplicateRate) =>
-              setConfig({ ...config, chaos: { ...config.chaos, duplicateRate } })
-            }
-          />
-          <PercentSlider
-            label="Out-of-order callbacks"
-            value={config.chaos.outOfOrderRate}
-            onChange={(outOfOrderRate) =>
-              setConfig({ ...config, chaos: { ...config.chaos, outOfOrderRate } })
-            }
-          />
-        </div>
-      </div>
+      <Card className="mt-4">
+        <CardHeader className="flex-row items-center gap-2.5 space-y-0">
+          <FlaskConical className="h-4 w-4 text-muted-foreground" />
+          <CardTitle>Callback chaos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <PercentSlider
+              label="Duplicate callbacks"
+              value={config.chaos.duplicateRate}
+              onChange={(duplicateRate) =>
+                setConfig({ ...config, chaos: { ...config.chaos, duplicateRate } })
+              }
+            />
+            <PercentSlider
+              label="Out-of-order callbacks"
+              value={config.chaos.outOfOrderRate}
+              onChange={(outOfOrderRate) =>
+                setConfig({ ...config, chaos: { ...config.chaos, outOfOrderRate } })
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={() => void apply()}
-          disabled={saving}
-          className="rounded-lg bg-pulse-600 px-4 py-2 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
-        >
+      <div className="mt-5 flex items-center gap-3">
+        <Button onClick={() => void apply()} disabled={saving}>
           {saving ? 'Applying…' : 'Apply to simulator'}
-        </button>
-        {savedAt && <span className="text-sm text-emerald-700">Applied ✓</span>}
-        {error && <span className="text-sm text-rose-700">{error}</span>}
+        </Button>
+        {savedAt && (
+          <span className="flex items-center gap-1.5 text-sm text-success">
+            <Check className="h-4 w-4" />
+            Applied
+          </span>
+        )}
+        {error && <span className="text-sm text-destructive">{error}</span>}
       </div>
 
       {config.stats && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="font-medium">Simulator counters (since boot)</h2>
-          <div className="mt-2 grid grid-cols-2 gap-x-4 text-sm text-slate-600 sm:grid-cols-3">
-            {Object.entries(config.stats).map(([key, value]) => (
-              <div key={key} className="flex justify-between">
-                <span>{key}</span>
-                <span className="font-medium">{Number(value).toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card className="mt-5">
+          <CardHeader>
+            <CardTitle>Simulator counters (since boot)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm text-muted-foreground sm:grid-cols-3">
+              {Object.entries(config.stats).map(([key, value]) => (
+                <div key={key} className="flex justify-between">
+                  <span>{key}</span>
+                  <span className="font-medium text-foreground tabular-nums">
+                    {Number(value).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

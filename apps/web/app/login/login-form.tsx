@@ -1,7 +1,23 @@
 'use client';
 
+import { ArrowRight, Check, KeyRound } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { PulseLogo } from '../../components/logo';
+import { Aurora } from '../../components/motion/aurora';
+import { BlurText } from '../../components/motion/blur-text';
+import { ThemeToggle } from '../../components/theme-toggle';
+import { Alert, AlertDescription } from '../../components/ui/alert';
+import { Button } from '../../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
 
 export function LoginForm({
   authDisabled = false,
@@ -53,87 +69,132 @@ export function LoginForm({
   }
 
   return (
-    <div className="mx-auto mt-24 max-w-sm">
-      <div className="flex items-center justify-center gap-2">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-pulse-600 text-lg font-bold text-white">
-          P
-        </span>
-        <span className="text-xl font-semibold tracking-tight">Pulse</span>
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      {/* same atmosphere as the landing hero */}
+      <div className="absolute inset-x-0 top-0 h-[560px]">
+        <Aurora />
+        <div className="bg-dot-grid mask-fade-edges absolute inset-0" />
       </div>
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-        <h1 className="font-medium">Workspace access</h1>
-        {!disabled && (
-          <>
-            <p className="mt-1 text-sm text-slate-500">
-              {reviewerCode
-                ? 'Reviewing Pulse? Use the access code below.'
-                : 'Enter the access code from the submission notes.'}
-            </p>
-            {reviewerCode && (
-              <button
-                type="button"
-                onClick={() => setCode(reviewerCode)}
-                className="mt-3 w-full rounded-lg border border-pulse-200 bg-pulse-50 px-3 py-2 text-left text-sm text-pulse-800 hover:bg-pulse-100"
-              >
-                Reviewer access code:{' '}
-                <code className="font-mono font-semibold">{reviewerCode}</code>
-                <span className="mt-0.5 block text-xs text-pulse-600">Click to fill</span>
-              </button>
-            )}
-            <form onSubmit={(event) => void submit(event)} className="mt-4">
-              <input
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Your name (optional — for the greeting)"
-                maxLength={60}
-                autoFocus
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-pulse-500 focus:outline-none"
-              />
-              {/* Honeypot: hidden from humans (and screen readers); bots that
-                  auto-fill every field reveal themselves. */}
-              <input
-                type="text"
-                value={website}
-                onChange={(event) => setWebsite(event.target.value)}
-                name="website"
-                tabIndex={-1}
-                autoComplete="off"
-                aria-hidden="true"
-                className="absolute -left-[9999px] h-0 w-0 opacity-0"
-              />
-              <input
-                type="password"
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                placeholder="Access code"
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-pulse-500 focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={busy || success || code.length === 0}
-                className="mt-3 w-full rounded-lg bg-pulse-600 px-4 py-2 text-sm font-medium text-white hover:bg-pulse-700 disabled:opacity-50"
-              >
-                {success ? 'Access granted ✓' : busy ? 'Checking…' : 'Enter workspace'}
-              </button>
-            </form>
-            {success && (
-              <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
-                Access granted{name.trim() ? ` — welcome, ${name.trim()}` : ''} — opening your
-                workspace…
-              </p>
-            )}
-            {error && (
-              <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>
-            )}
-          </>
-        )}
-        {disabled && (
-          <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-            Access control is disabled on this deployment —{' '}
-            <a href="/" className="font-medium underline">go to the dashboard</a>.
-          </p>
-        )}
+
+      <header className="relative z-10 flex items-center justify-between px-5 py-4 sm:px-8">
+        <Link href="/" aria-label="Back to the Pulse landing page">
+          <PulseLogo markClassName="h-7 w-7" wordClassName="text-base" />
+        </Link>
+        <ThemeToggle />
+      </header>
+
+      <div className="relative z-10 mx-auto mt-14 max-w-sm px-4 pb-16 sm:mt-20">
+        <BlurText as="div">
+          <Card className="frame-ring border-transparent">
+            <CardHeader>
+              <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                <KeyRound className="h-4 w-4 text-foreground/70" />
+              </span>
+              <CardTitle className="text-base">Workspace access</CardTitle>
+              {!disabled && (
+                <CardDescription>
+                  {reviewerCode
+                    ? 'Reviewing Pulse? Use the access code below.'
+                    : 'Enter the access code from the submission notes.'}
+                </CardDescription>
+              )}
+            </CardHeader>
+            <CardContent>
+              {!disabled && (
+                <>
+                  {reviewerCode && (
+                    <button
+                      type="button"
+                      onClick={() => setCode(reviewerCode)}
+                      className="mb-4 w-full rounded-lg border border-accent/30 bg-accent/5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent/10"
+                    >
+                      Reviewer access code:{' '}
+                      <code className="font-mono font-semibold">{reviewerCode}</code>
+                      <span className="mt-0.5 block text-xs font-medium text-accent">
+                        Click to fill
+                      </span>
+                    </button>
+                  )}
+                  <form onSubmit={(event) => void submit(event)} className="space-y-2.5">
+                    <Input
+                      type="text"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      placeholder="Your name (optional — for the greeting)"
+                      maxLength={60}
+                      autoFocus
+                    />
+                    {/* Honeypot: hidden from humans (and screen readers); bots
+                        that auto-fill every field reveal themselves. */}
+                    <input
+                      type="text"
+                      value={website}
+                      onChange={(event) => setWebsite(event.target.value)}
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      aria-hidden="true"
+                      className="absolute -left-[9999px] h-0 w-0 opacity-0"
+                    />
+                    <Input
+                      type="password"
+                      value={code}
+                      onChange={(event) => setCode(event.target.value)}
+                      placeholder="Access code"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={busy || success || code.length === 0}
+                      className="w-full"
+                    >
+                      {success ? (
+                        <>
+                          <Check />
+                          Access granted
+                        </>
+                      ) : busy ? (
+                        'Checking…'
+                      ) : (
+                        <>
+                          Enter workspace
+                          <ArrowRight />
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                  {success && (
+                    <Alert variant="success" className="mt-3">
+                      <AlertDescription>
+                        Access granted{name.trim() ? ` — welcome, ${name.trim()}` : ''} —
+                        opening your workspace…
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {error && (
+                    <Alert variant="destructive" className="mt-3">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                </>
+              )}
+              {disabled && (
+                <Alert variant="warning">
+                  <AlertDescription>
+                    Access control is disabled on this deployment —{' '}
+                    <a href="/" className="font-medium underline">
+                      go to the dashboard
+                    </a>
+                    .
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </BlurText>
+        <BlurText delay={250} className="mt-4 text-center text-xs text-muted-foreground">
+          Sessions are signed server-side · nothing is stored in your browser
+          beyond the cookie.
+        </BlurText>
       </div>
     </div>
   );

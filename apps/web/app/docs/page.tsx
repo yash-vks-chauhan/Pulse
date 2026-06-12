@@ -1,3 +1,6 @@
+import { Badge } from '../../components/ui/badge';
+import { Card, CardContent } from '../../components/ui/card';
+
 /**
  * In-app API documentation — the brief asks for a public URL reviewers can
  * open AND use, so the ingestion API is documented here with copyable curl
@@ -20,25 +23,36 @@ function Endpoint({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded bg-pulse-600 px-2 py-0.5 text-xs font-bold text-white">
-          {method}
-        </span>
-        <code className="text-sm font-medium">{path}</code>
-        <span className="ml-auto rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-          {auth}
-        </span>
-      </div>
-      <p className="mt-2 text-sm text-slate-600">{description}</p>
-      {children}
-    </div>
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span
+            className={`rounded-md px-2 py-0.5 font-mono text-xs font-bold ${
+              method === 'GET'
+                ? 'bg-accent/10 text-accent'
+                : 'bg-primary text-primary-foreground'
+            }`}
+          >
+            {method}
+          </span>
+          <code className="font-mono text-sm font-medium">{path}</code>
+          <Badge
+            variant={auth === 'public' ? 'success' : auth === 'x-api-key' ? 'warning' : 'destructive'}
+            className="ml-auto font-mono text-[11px]"
+          >
+            {auth}
+          </Badge>
+        </div>
+        <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 
 function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">
+    <pre className="mt-3 overflow-x-auto rounded-lg bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-200 dark:border dark:bg-zinc-900/60">
       {children}
     </pre>
   );
@@ -48,11 +62,11 @@ export default function DocsPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-semibold tracking-tight">API documentation</h1>
-      <p className="mt-2 text-sm text-slate-600">
-        All write endpoints require the <code className="rounded bg-slate-100 px-1">x-api-key</code>{' '}
+      <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        All write endpoints require the <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">x-api-key</code>{' '}
         header. Webhook traffic between services is HMAC-SHA256 signed with a replay window — see{' '}
-        <code className="rounded bg-slate-100 px-1">docs/SECURITY.md</code> in the repo. Batches are
-        idempotent: rows are keyed by your <code className="rounded bg-slate-100 px-1">external_id</code>,
+        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">docs/SECURITY.md</code> in the repo. Batches are
+        idempotent: rows are keyed by your <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">external_id</code>,
         so retries are always safe.
       </p>
 
