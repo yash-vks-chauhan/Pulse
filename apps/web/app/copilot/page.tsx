@@ -17,7 +17,7 @@ import {
 import { Separator } from '../../components/ui/separator';
 import { Skeleton } from '../../components/ui/skeleton';
 import { NumberTicker } from '../../components/motion/number-ticker';
-import { Grainient } from '../../components/motion/grainient';
+import { PrismaticBurst } from '../../components/motion/prismatic-burst';
 import { cn } from '../../lib/utils';
 
 /**
@@ -448,15 +448,27 @@ export default function CopilotPage() {
 
   return (
     <>
-      {/* Ambient grainient — full-bleed behind the whole copilot shell
+      {/* Ambient prismatic burst — full-bleed behind the whole copilot shell
           (sidebar + header + content) so the chrome reads as frosted glass over
           one continuous moving field. Fixed to the viewport at z-0, below the
           chrome (sidebar z-10 / header z-30) and the content column (z-10). The
           .ambient-mask anchors the light to the top-left, behind the rail and
           header, and dissolves the field into the page toward the bottom-right
-          for a composed, directional falloff rather than a clipped rectangle. */}
+          for a composed, directional falloff rather than a clipped rectangle.
+          The burst composites its own brightness into the canvas alpha, so the
+          dark field is transparent and only the cool spectral light (indigo →
+          blue → cyan, on-brand with the accent) paints — correct over both the
+          light and dark page, no blend mode needed. */}
       <div aria-hidden className="ambient-mask pointer-events-none fixed inset-0 z-0">
-        <Grainient className="absolute inset-0 h-full w-full" />
+        <PrismaticBurst
+          className="absolute inset-0 h-full w-full"
+          intensity={1.8}
+          speed={0.45}
+          animationType="rotate3d"
+          distort={1.5}
+          rayCount={0}
+          colors={['#312e81', '#4338ca', '#2563eb', '#06b6d4', '#67e8f9']}
+        />
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-2xl space-y-3 py-1 sm:py-4">
@@ -466,7 +478,7 @@ export default function CopilotPage() {
           // Empty canvas — an ambient, editorial prompt hero.
           <div
             ref={activeRef}
-            className="relative flex min-h-[calc(100dvh-7rem)] flex-col justify-center py-6 md:min-h-[calc(100dvh-5rem)]"
+            className="relative flex min-h-[calc(100svh-7rem)] flex-col justify-center py-6 sm:min-h-[calc(100svh-9rem)]"
           >
             <div className="relative z-10 mx-auto w-full max-w-2xl text-center">
               <div className="blur-in flex justify-center" style={{ ['--blur-delay' as string]: '0ms' }}>

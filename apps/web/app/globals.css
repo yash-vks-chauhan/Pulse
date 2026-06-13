@@ -348,6 +348,31 @@
   }
 }
 
+/* ---- spotlight bento (vue-bits "Magic Bento" / "Spotlight Card") ----
+ * A soft accent glow tracks the cursor across a card, painted above the
+ * surface but beneath the content so text stays crisp. SpotlightLink writes
+ * --spot-x / --spot-y per card; the ::before is clipped to the card radius. */
+.spotlight {
+  position: relative;
+}
+.spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    240px circle at var(--spot-x, 50%) var(--spot-y, -30%),
+    hsl(var(--accent) / 0.1),
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.spotlight:hover::before {
+  opacity: 1;
+}
+
 /* Page enter — content fades in on route change (PageTransition wrapper).
  * Opacity only: a transform/filter here would create a containing block and
  * break position:fixed page backgrounds (e.g. the copilot grainient). */
@@ -382,5 +407,8 @@
   .shimmer-text,
   .ai-thinking {
     animation: none;
+  }
+  .spotlight::before {
+    display: none;
   }
 }

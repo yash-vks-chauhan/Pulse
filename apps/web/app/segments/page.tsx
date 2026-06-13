@@ -55,7 +55,7 @@ export default async function SegmentsPage() {
   const segments = await fetchSegments();
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Segments</h1>
@@ -95,7 +95,7 @@ export default async function SegmentsPage() {
         </Card>
       )}
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-6 grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {segments?.map((segment) => (
           <Card key={segment.id}>
             <CardContent className="p-5">

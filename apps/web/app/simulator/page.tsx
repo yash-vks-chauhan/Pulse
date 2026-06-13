@@ -132,18 +132,18 @@ export default function SimulatorPage() {
 
   if (error && !config) {
     return (
-      <Alert variant="destructive" className="mx-auto max-w-3xl">
+      <Alert variant="destructive" className="max-w-2xl">
         <AlertDescription>{error}</AlertDescription>
       </Alert>
     );
   }
   if (!config) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="space-y-4">
         <Skeleton className="h-9 w-72" />
         <Skeleton className="h-4 w-96" />
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((index) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((index) => (
             <Skeleton key={index} className="h-56" />
           ))}
         </div>
@@ -152,111 +152,115 @@ export default function SimulatorPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl pb-16">
+    <div className="pb-16">
       <h1 className="text-2xl font-semibold tracking-tight">Chaos panel</h1>
-      <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         These dials change the vendor simulator live — crank a failure rate during a running
         campaign and watch retries, the DLQ, and channel failover absorb it.
       </p>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        {CHANNELS.map((channel) => {
-          const profile = config.channels[channel];
-          const meta = CHANNEL_META[channel];
-          const Icon = meta.icon;
-          return (
-            <Card key={channel}>
-              <CardHeader className="flex-row items-center justify-between space-y-0">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted">
-                    <Icon className="h-4 w-4 text-foreground/70" />
+      <div className="mt-6 grid gap-5 lg:grid-cols-3">
+        {/* Channel dials — fill the main column */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
+          {CHANNELS.map((channel) => {
+            const profile = config.channels[channel];
+            const meta = CHANNEL_META[channel];
+            const Icon = meta.icon;
+            return (
+              <Card key={channel}>
+                <CardHeader className="flex-row items-center justify-between space-y-0">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted">
+                      <Icon className="h-4 w-4 text-foreground/70" />
+                    </span>
+                    <CardTitle>{meta.label}</CardTitle>
+                  </div>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {profile.ratePerSec}/s · {profile.latencyMinMs}–{profile.latencyMaxMs}ms
                   </span>
-                  <CardTitle>{meta.label}</CardTitle>
-                </div>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {profile.ratePerSec}/s · {profile.latencyMinMs}–{profile.latencyMaxMs}ms
-                </span>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <PercentSlider
+                    label="Failure rate"
+                    value={profile.failureRate}
+                    accent
+                    onChange={(failureRate) => updateChannel(channel, { failureRate })}
+                  />
+                  <PercentSlider
+                    label="Engagement rate"
+                    value={profile.engagementRate}
+                    onChange={(engagementRate) => updateChannel(channel, { engagementRate })}
+                  />
+                  <PercentSlider
+                    label="Click rate"
+                    value={profile.clickRate}
+                    onChange={(clickRate) => updateChannel(channel, { clickRate })}
+                  />
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Aside — global chaos, the apply action, and live counters */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="flex-row items-center gap-2.5 space-y-0">
+              <FlaskConical className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Callback chaos</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PercentSlider
+                label="Duplicate callbacks"
+                value={config.chaos.duplicateRate}
+                onChange={(duplicateRate) =>
+                  setConfig({ ...config, chaos: { ...config.chaos, duplicateRate } })
+                }
+              />
+              <PercentSlider
+                label="Out-of-order callbacks"
+                value={config.chaos.outOfOrderRate}
+                onChange={(outOfOrderRate) =>
+                  setConfig({ ...config, chaos: { ...config.chaos, outOfOrderRate } })
+                }
+              />
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => void apply()} disabled={saving}>
+              {saving ? 'Applying…' : 'Apply to simulator'}
+            </Button>
+            {savedAt && (
+              <span className="flex items-center gap-1.5 text-sm text-success">
+                <Check className="h-4 w-4" />
+                Applied
+              </span>
+            )}
+            {error && <span className="text-sm text-destructive">{error}</span>}
+          </div>
+
+          {config.stats && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Simulator counters (since boot)</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <PercentSlider
-                  label="Failure rate"
-                  value={profile.failureRate}
-                  accent
-                  onChange={(failureRate) => updateChannel(channel, { failureRate })}
-                />
-                <PercentSlider
-                  label="Engagement rate"
-                  value={profile.engagementRate}
-                  onChange={(engagementRate) => updateChannel(channel, { engagementRate })}
-                />
-                <PercentSlider
-                  label="Click rate"
-                  value={profile.clickRate}
-                  onChange={(clickRate) => updateChannel(channel, { clickRate })}
-                />
+              <CardContent>
+                <div className="space-y-1.5 text-sm text-muted-foreground">
+                  {Object.entries(config.stats).map(([key, value]) => (
+                    <div key={key} className="flex justify-between gap-4">
+                      <span>{key}</span>
+                      <span className="font-medium text-foreground tabular-nums">
+                        {Number(value).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
-          );
-        })}
+          )}
+        </div>
       </div>
-
-      <Card className="mt-4">
-        <CardHeader className="flex-row items-center gap-2.5 space-y-0">
-          <FlaskConical className="h-4 w-4 text-muted-foreground" />
-          <CardTitle>Callback chaos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <PercentSlider
-              label="Duplicate callbacks"
-              value={config.chaos.duplicateRate}
-              onChange={(duplicateRate) =>
-                setConfig({ ...config, chaos: { ...config.chaos, duplicateRate } })
-              }
-            />
-            <PercentSlider
-              label="Out-of-order callbacks"
-              value={config.chaos.outOfOrderRate}
-              onChange={(outOfOrderRate) =>
-                setConfig({ ...config, chaos: { ...config.chaos, outOfOrderRate } })
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="mt-5 flex items-center gap-3">
-        <Button onClick={() => void apply()} disabled={saving}>
-          {saving ? 'Applying…' : 'Apply to simulator'}
-        </Button>
-        {savedAt && (
-          <span className="flex items-center gap-1.5 text-sm text-success">
-            <Check className="h-4 w-4" />
-            Applied
-          </span>
-        )}
-        {error && <span className="text-sm text-destructive">{error}</span>}
-      </div>
-
-      {config.stats && (
-        <Card className="mt-5">
-          <CardHeader>
-            <CardTitle>Simulator counters (since boot)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm text-muted-foreground sm:grid-cols-3">
-              {Object.entries(config.stats).map(([key, value]) => (
-                <div key={key} className="flex justify-between">
-                  <span>{key}</span>
-                  <span className="font-medium text-foreground tabular-nums">
-                    {Number(value).toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { CheckCircle2, FileUp, ShoppingCart, Users, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FileUp, ShoppingCart, Users, XCircle } from 'lucide-react';
+import Link from 'next/link';
 import Papa from 'papaparse';
 import { useRef, useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
@@ -138,13 +139,15 @@ export default function DataPage() {
       : 0;
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-semibold tracking-tight">Data ingest</h1>
-      <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
-        Upload customers or orders as CSV. Rows are validated server-side, encrypted where they
-        contain personal data, and upserted idempotently — re-uploading the same file is always
-        safe.
-      </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Data ingest</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Upload customers or orders as CSV. Rows are validated server-side, encrypted where they
+          contain personal data, and upserted idempotently — re-uploading the same file is always
+          safe.
+        </p>
+      </div>
 
       <Tabs
         value={datasetType}
@@ -152,7 +155,6 @@ export default function DataPage() {
           setDatasetType(value as DatasetType);
           setState({ status: 'idle' });
         }}
-        className="mt-6"
       >
         <TabsList>
           <TabsTrigger value="customers">
@@ -166,58 +168,91 @@ export default function DataPage() {
         </TabsList>
       </Tabs>
 
-      <Card className="mt-4">
-        <CardContent className="p-5 text-sm">
-          <p className="font-medium">Expected columns</p>
-          <p className="mt-1.5 text-muted-foreground">
-            Required:{' '}
-            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-              {columns.required.join(', ')}
-            </code>
-          </p>
-          <p className="mt-1 text-muted-foreground">
-            Optional:{' '}
-            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-              {columns.optional.join(', ')}
-            </code>
-          </p>
-        </CardContent>
-      </Card>
-
-      <div
-        className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-input bg-card p-12 text-center transition-colors hover:border-ring/60 hover:bg-muted/30"
-        onClick={() => fileInputRef.current?.click()}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          const file = event.dataTransfer.files[0];
-          if (file) void handleFile(file);
-        }}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Dropzone — the primary action, fills the main column */}
+        <div
+          className="flex min-h-[18rem] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-input bg-card p-12 text-center transition-colors hover:border-ring/60 hover:bg-muted/30 lg:col-span-2"
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
             if (file) void handleFile(file);
-            event.target.value = '';
           }}
-        />
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
-          <FileUp className="h-5 w-5 text-muted-foreground" />
-        </span>
-        <p className="mt-4 text-sm font-medium">
-          Drop a {datasetType} CSV here, or click to choose a file
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Batched in chunks of {BATCH_SIZE} rows
-        </p>
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void handleFile(file);
+              event.target.value = '';
+            }}
+          />
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <FileUp className="h-6 w-6 text-muted-foreground" />
+          </span>
+          <p className="mt-4 text-base font-medium">
+            Drop a {datasetType} CSV here, or click to choose a file
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Batched in chunks of {BATCH_SIZE} rows · parsed in your browser
+          </p>
+        </div>
+
+        {/* Aside — schema reference + the API alternative */}
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm font-medium">Expected columns</p>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Required</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {columns.required.map((column) => (
+                      <code key={column} className="rounded bg-muted px-1.5 py-1 font-mono text-xs">
+                        {column}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Optional</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {columns.optional.map((column) => (
+                      <code key={column} className="rounded bg-muted px-1.5 py-1 font-mono text-xs">
+                        {column}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm font-medium">Prefer the API?</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                Batched, idempotent, PII encrypted at rest — everything this page does, the
+                ingestion API does too.
+              </p>
+              <Link
+                href="/docs"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+              >
+                Read the API docs
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {state.status !== 'idle' && (
-        <Card className="mt-4">
+        <Card>
           <CardContent className="p-5 text-sm">
             {state.status === 'parsing' && <p>Parsing {state.fileName}…</p>}
             {state.status === 'uploading' && (

@@ -26,7 +26,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 
@@ -141,8 +140,7 @@ export function AppSidebar({
         <SidebarMenu>
           {/* Account row — avatar + name on the left, a quiet inline sign-out on
               the right, kept to one tidy line so there is a single left edge.
-              Collapses to just the centered avatar; the labelled fallback below
-              restores one-click sign-out when the rail is icon-only. */}
+              Collapses to just the centered avatar. */}
           <SidebarMenuItem>
             <div className="flex items-center gap-2 rounded-md p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-[11px] font-semibold text-sidebar-accent-foreground ring-1 ring-sidebar-border">
@@ -172,23 +170,8 @@ export function AppSidebar({
               )}
             </div>
           </SidebarMenuItem>
-
-          {showLogout && (
-            <SidebarMenuItem className="hidden group-data-[collapsible=icon]:block">
-              <form action="/api/auth/logout" method="post">
-                <SidebarMenuButton asChild tooltip="Sign out">
-                  <button type="submit">
-                    <LogOut />
-                    <span>Sign out</span>
-                  </button>
-                </SidebarMenuButton>
-              </form>
-            </SidebarMenuItem>
-          )}
         </SidebarMenu>
       </SidebarFooter>
-
-      <SidebarRail />
     </Sidebar>
   );
 }

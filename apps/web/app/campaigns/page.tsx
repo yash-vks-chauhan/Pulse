@@ -73,7 +73,7 @@ export default async function CampaignsPage() {
   const running = campaigns?.filter((campaign) => campaign.status === 'RUNNING').length ?? 0;
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>

@@ -9,6 +9,28 @@ import { Card, CardContent } from '../../components/ui/card';
 
 const CRM = process.env.NEXT_PUBLIC_CRM_API_URL ?? 'http://localhost:4000';
 
+/** Anchor id for an endpoint path, shared by the nav rail and each card. */
+function slug(path: string): string {
+  return path.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
+}
+
+/** Left-rail jump list — kept in sync with the endpoints below. */
+const TOC: Array<{ method: string; path: string }> = [
+  { method: 'POST', path: '/api/ingest/customers' },
+  { method: 'POST', path: '/api/ingest/orders' },
+  { method: 'POST', path: '/api/ai/segment' },
+  { method: 'POST', path: '/api/ai/draft' },
+  { method: 'POST', path: '/api/segments' },
+  { method: 'POST', path: '/api/segments/preview' },
+  { method: 'POST', path: '/api/campaigns' },
+  { method: 'POST', path: '/api/campaigns/:id/launch' },
+  { method: 'GET', path: '/api/campaigns/:id/stats' },
+  { method: 'GET', path: '/api/insights/:campaignId' },
+  { method: 'POST', path: '/api/insights/:campaignId/follow-up' },
+  { method: 'POST', path: '/api/receipts' },
+  { method: 'GET', path: '/healthz' },
+];
+
 function Endpoint({
   method,
   path,
@@ -23,7 +45,7 @@ function Endpoint({
   children?: React.ReactNode;
 }) {
   return (
-    <Card>
+    <Card id={slug(path)} className="scroll-mt-20">
       <CardContent className="p-5">
         <div className="flex flex-wrap items-center gap-2.5">
           <span
@@ -60,7 +82,7 @@ function CodeBlock({ children }: { children: string }) {
 
 export default function DocsPage() {
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight">API documentation</h1>
       <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         All write endpoints require the <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">x-api-key</code>{' '}
@@ -70,7 +92,30 @@ export default function DocsPage() {
         so retries are always safe.
       </p>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <aside className="hidden lg:block">
+          <nav className="sticky top-20 space-y-0.5">
+            <p className="px-2 pb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Endpoints
+            </p>
+            {TOC.map((entry) => (
+              <a
+                key={entry.path}
+                href={`#${slug(entry.path)}`}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <span
+                  className={`font-mono text-[10px] font-bold ${entry.method === 'GET' ? 'text-accent' : 'text-foreground/70'}`}
+                >
+                  {entry.method}
+                </span>
+                <span className="truncate font-mono">{entry.path}</span>
+              </a>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="min-w-0 space-y-4">
         <Endpoint
           method="POST"
           path="/api/ingest/customers"
@@ -229,6 +274,7 @@ export default function DocsPage() {
           auth="public"
           description="Liveness + dependency health for the CRM API (database, queue)."
         />
+        </div>
       </div>
     </div>
   );
