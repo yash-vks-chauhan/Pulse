@@ -32,16 +32,13 @@
   --radius: 0.625rem;
 
   /* Sidebar surface — its own palette so the nav rail reads as a distinct
-   * panel from the white content area. Fully monochrome: the active route is a
-   * stronger grey with a near-black text/indicator, no colour accent. */
+   * panel from the white content area. Fully monochrome: the active/hover route
+   * uses the accent surface with near-black text, no colour accent. */
   --sidebar: 240 9% 98%;
   --sidebar-foreground: 240 6% 30%;
-  --sidebar-muted: 240 4% 50%;
   --sidebar-border: 240 6% 90%;
   --sidebar-accent: 240 5% 93%;
   --sidebar-accent-foreground: 240 8% 12%;
-  --sidebar-active: 240 9% 12%;
-  --sidebar-active-surface: 240 6% 89%;
   --sidebar-ring: 240 5% 65%;
   --sidebar-primary: 240 6% 10%;
   --sidebar-primary-foreground: 0 0% 98%;
@@ -70,16 +67,13 @@
   --ring: 240 5% 65%;
 
   /* Sidebar surface — elevated a touch above the page so the rail still reads
-   * as its own panel in the dark. Monochrome: active route is a lighter grey
-   * with near-white text/indicator, no colour accent. */
+   * as its own panel in the dark. Monochrome: active/hover route uses the
+   * accent surface with near-white text, no colour accent. */
   --sidebar: 240 8% 7%;
   --sidebar-foreground: 240 6% 78%;
-  --sidebar-muted: 240 5% 52%;
   --sidebar-border: 240 5% 15%;
   --sidebar-accent: 240 5% 14%;
   --sidebar-accent-foreground: 0 0% 98%;
-  --sidebar-active: 0 0% 98%;
-  --sidebar-active-surface: 240 5% 18%;
   --sidebar-ring: 240 5% 45%;
   --sidebar-primary: 0 0% 98%;
   --sidebar-primary-foreground: 240 6% 10%;
@@ -223,6 +217,18 @@
     );
   }
 
+  /* Copilot ambient field falloff: light anchored to the top-left (behind the
+   * header + rail), dissolving into the page toward the bottom-right so the
+   * field reads as a lit, directional pool rather than a clipped rectangle. */
+  .ambient-mask {
+    -webkit-mask-image: radial-gradient(
+      140% 140% at 0% 0%,
+      black 30%,
+      transparent 92%
+    );
+    mask-image: radial-gradient(140% 140% at 0% 0%, black 30%, transparent 92%);
+  }
+
   /* Hairline ring used on framed previews (1px crisp border + soft shadow) */
   .frame-ring {
     box-shadow:
@@ -342,159 +348,6 @@
   }
 }
 
-/* ---------------------------------------------------------------------------
- * Sidebar collapse (icon rail) — the chosen width is applied from a pre-paint
- * inline script (see layout.tsx) onto html[data-sidebar], so the correct state
- * paints on the first frame with no hydration flash. React only mirrors the
- * state for tooltip/aria behaviour.
- *
- * Design goal: nothing JUMPS when toggling. Instead of flipping
- * justify-content (which snaps icons sideways), rows keep their icon pinned by
- * padding so an 18px icon lands dead-centre of the 4.5rem rail, and every
- * collapse visual (width, padding, margin, max-width, opacity) is a real
- * transition that runs in lockstep over the same 0.3s.
- *
- * All collapsed-state rules are scoped under .sb-aside so the mobile drawer —
- * which reuses the same nav classes in a portal — is never affected by the
- * desktop collapse preference.
- * ------------------------------------------------------------------------- */
-:root {
-  --sidebar-w: 17rem;
-  --sidebar-w-icon: 4.5rem;
-  --sb-ease: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* The content area's left inset tracks the live rail width (0 below md, where
- * the rail becomes a drawer). Fixed/absolute page backgrounds anchor to this
- * so they sit flush against the rail and slide with it — never hiding under
- * it (see the copilot ambient background). */
-:root {
-  --content-left: 0px;
-}
-@media (min-width: 768px) {
-  :root {
-    --content-left: var(--sidebar-w);
-  }
-  html[data-sidebar='collapsed'] {
-    --content-left: var(--sidebar-w-icon);
-  }
-}
-
-.sb-aside {
-  width: var(--sidebar-w);
-  transition: width 0.3s var(--sb-ease);
-}
-html[data-sidebar='collapsed'] .sb-aside {
-  width: var(--sidebar-w-icon);
-}
-
-/* Rows: icon pinned by padding so it centres when the rail narrows. */
-.sb-row {
-  transition:
-    padding 0.3s var(--sb-ease),
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-row {
-  padding-left: 15px;
-  padding-right: 15px;
-}
-
-/* Inline labels just fade; the narrowing rail (overflow-x hidden) clips them,
- * so no width juggling and no layout snap. */
-.sb-collapsible {
-  white-space: nowrap;
-  transition: opacity 0.18s ease;
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-collapsible {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Brand wordmark collapses its width smoothly so the header toggle glides in. */
-.sb-brand {
-  max-width: 12rem;
-  overflow: hidden;
-  transition:
-    max-width 0.3s var(--sb-ease),
-    opacity 0.18s ease;
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-brand {
-  max-width: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Header toggle: nudged in 8px when collapsed so its centre lines up with the
- * centred nav icons below it. Transitions, never jumps. */
-.sb-toggle {
-  transition:
-    margin 0.3s var(--sb-ease),
-    background-color 0.15s ease,
-    color 0.15s ease;
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-toggle {
-  margin-right: 8px;
-}
-
-/* Footer name drops out of the stacked column entirely when collapsed. */
-html[data-sidebar='collapsed'] .sb-aside .sb-name {
-  display: none;
-}
-
-/* Group labels collapse to nothing; a hairline separates the groups instead. */
-.sb-group-label {
-  transition: opacity 0.18s ease;
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-group-label {
-  height: 0;
-  margin: 0;
-  opacity: 0;
-  overflow: hidden;
-}
-.sb-group + .sb-group {
-  transition:
-    margin 0.3s var(--sb-ease),
-    border-color 0.2s ease;
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-group + .sb-group {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid hsl(var(--sidebar-border));
-}
-
-/* Footer identity stacks into a centred column when collapsed. */
-html[data-sidebar='collapsed'] .sb-aside .sb-identity {
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* Collapse-toggle chevron flips to point outward when collapsed. */
-.sb-chevron {
-  transition: transform 0.3s var(--sb-ease);
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-chevron {
-  transform: rotate(180deg);
-}
-
-/* Active-route indicator — grows in from the row's left edge. Hidden in the
- * collapsed rail, where the active row's filled surface carries the state. */
-.sb-indicator {
-  transform: scaleY(0);
-  transform-origin: center;
-  transition:
-    transform 0.25s var(--sb-ease),
-    opacity 0.2s ease;
-  opacity: 0;
-}
-.sb-indicator[data-active='true'] {
-  transform: scaleY(1);
-  opacity: 1;
-}
-html[data-sidebar='collapsed'] .sb-aside .sb-indicator {
-  display: none;
-}
-
 /* Page enter — content fades in on route change (PageTransition wrapper).
  * Opacity only: a transform/filter here would create a containing block and
  * break position:fixed page backgrounds (e.g. the copilot grainient). */
@@ -511,17 +364,6 @@ html[data-sidebar='collapsed'] .sb-aside .sb-indicator {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sb-aside,
-  .sb-row,
-  .sb-collapsible,
-  .sb-brand,
-  .sb-toggle,
-  .sb-group-label,
-  .sb-group + .sb-group,
-  .sb-chevron,
-  .sb-indicator {
-    transition: none;
-  }
   .page-enter {
     animation: none;
   }

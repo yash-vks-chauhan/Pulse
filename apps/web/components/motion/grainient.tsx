@@ -112,10 +112,16 @@ function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255];
 }
 
-// Pulse palettes — near-black zinc with only a faint blue cast (dark) / soft
-// off-white with a hint of blue (light). Deliberately low-chroma.
-const DARK: [string, string, string] = ['#0c0c16', '#2a1e5e', '#15406e'];
-const LIGHT: [string, string, string] = ['#eef1ff', '#dde3ff', '#aebdfb'];
+// Pulse palettes — a cool analogous "aurora" anchored to the accent (~217°):
+// the field sweeps indigo → blue → teal-cyan, so the accent blue lives in the
+// blend while its neighbours add dimension without ever leaving the cool family
+// (no off-key warm, no magenta-side violet — the indigo here is firmly on the
+// blue side, G > R). Dark rides a deep-navy base — lifted off pure black so the
+// frosted rail still catches blue where it sits over the field's darkest zone;
+// light lifts off a blue-white into soft indigo and cyan so the wash reads
+// intentional. The mask still fades both into the page background at the edges.
+const DARK: [string, string, string] = ['#0f1a3a', '#23316d', '#136a86'];
+const LIGHT: [string, string, string] = ['#e8eeff', '#c4cdf9', '#abe0f0'];
 
 export function Grainient({ className }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,11 +159,11 @@ export function Grainient({ className }: { className?: string }) {
       uniforms: {
         iTime: { value: 0 },
         iResolution: { value: new Float32Array([1, 1]) },
-        uTimeSpeed: { value: 0.14 },
+        uTimeSpeed: { value: 0.2 },
         uColorBalance: { value: 0.0 },
         uWarpStrength: { value: 1.0 },
         uWarpFrequency: { value: 5.0 },
-        uWarpSpeed: { value: 2.0 },
+        uWarpSpeed: { value: 2.4 },
         uWarpAmplitude: { value: 60.0 },
         uBlendAngle: { value: 0.0 },
         uBlendSoftness: { value: 0.1 },
@@ -165,10 +171,10 @@ export function Grainient({ className }: { className?: string }) {
         uNoiseScale: { value: 2.0 },
         uGrainAmount: { value: 0.06 },
         uGrainScale: { value: 2.0 },
-        uGrainAnimated: { value: 0.0 },
+        uGrainAnimated: { value: 1.0 },
         uContrast: { value: 1.2 },
         uGamma: { value: 1.0 },
-        uSaturation: { value: 1.05 },
+        uSaturation: { value: 1.15 },
         uCenterOffset: { value: new Float32Array([0, 0]) },
         uZoom: { value: 0.9 },
         uColor1: { value: new Float32Array(hexToRgb(c1)) },

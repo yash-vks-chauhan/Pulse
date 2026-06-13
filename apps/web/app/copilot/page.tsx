@@ -447,28 +447,27 @@ export default function CopilotPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-3 py-1 sm:py-4">
+    <>
+      {/* Ambient grainient — full-bleed behind the whole copilot shell
+          (sidebar + header + content) so the chrome reads as frosted glass over
+          one continuous moving field. Fixed to the viewport at z-0, below the
+          chrome (sidebar z-10 / header z-30) and the content column (z-10). The
+          .ambient-mask anchors the light to the top-left, behind the rail and
+          header, and dissolves the field into the page toward the bottom-right
+          for a composed, directional falloff rather than a clipped rectangle. */}
+      <div aria-hidden className="ambient-mask pointer-events-none fixed inset-0 z-0">
+        <Grainient className="absolute inset-0 h-full w-full" />
+      </div>
+
+      <div className="relative z-10 mx-auto w-full max-w-2xl space-y-3 py-1 sm:py-4">
       {/* ───────────────── Step 1 · Audience ───────────────── */}
       {activeStep === 'audience' ? (
         !dsl ? (
           // Empty canvas — an ambient, editorial prompt hero.
           <div
             ref={activeRef}
-            className="relative flex min-h-[calc(100dvh-7rem)] flex-col justify-center overflow-hidden py-6 md:min-h-[calc(100dvh-5rem)]"
+            className="relative flex min-h-[calc(100dvh-7rem)] flex-col justify-center py-6 md:min-h-[calc(100dvh-5rem)]"
           >
-            {/* ambient background: full-bleed animated grainient across the
-                content area only — anchored to the live sidebar width via
-                --content-left so it sits flush against the rail and slides with
-                it on collapse/expand, never hiding under it. Fades into the
-                page lower down. */}
-            <div
-              aria-hidden
-              className="pointer-events-none fixed inset-y-0 right-0 z-0 left-[var(--content-left)] transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-            >
-              <Grainient className="absolute inset-0 h-full w-full" />
-              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-background" />
-            </div>
-
             <div className="relative z-10 mx-auto w-full max-w-2xl text-center">
               <div className="blur-in flex justify-center" style={{ ['--blur-delay' as string]: '0ms' }}>
                 <span className="inline-flex items-center gap-2 rounded-full border bg-card/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
@@ -972,6 +971,7 @@ export default function CopilotPage() {
             <p className="text-sm font-medium text-muted-foreground">Delivery</p>
           </div>
         ))}
-    </div>
+      </div>
+    </>
   );
 }

@@ -48,12 +48,9 @@ const config: Config = {
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar) / <alpha-value>)',
           foreground: 'hsl(var(--sidebar-foreground) / <alpha-value>)',
-          muted: 'hsl(var(--sidebar-muted) / <alpha-value>)',
           border: 'hsl(var(--sidebar-border) / <alpha-value>)',
           accent: 'hsl(var(--sidebar-accent) / <alpha-value>)',
           'accent-foreground': 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)',
-          active: 'hsl(var(--sidebar-active) / <alpha-value>)',
-          'active-surface': 'hsl(var(--sidebar-active-surface) / <alpha-value>)',
           ring: 'hsl(var(--sidebar-ring) / <alpha-value>)',
           primary: 'hsl(var(--sidebar-primary) / <alpha-value>)',
           'primary-foreground': 'hsl(var(--sidebar-primary-foreground) / <alpha-value>)',

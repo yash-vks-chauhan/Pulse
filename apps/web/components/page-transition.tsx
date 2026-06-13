@@ -8,8 +8,8 @@ import type { ReactNode } from 'react';
  * wrapper remounts and the animation restarts on navigation.
  *
  * Opacity only by design — a transform/filter here would establish a
- * containing block and break position:fixed page backgrounds (the copilot
- * ambient grainient is fixed to the viewport).
+ * containing block, which could shift fixed/absolute page backgrounds; the
+ * fade stays purely compositor-friendly.
  */
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
