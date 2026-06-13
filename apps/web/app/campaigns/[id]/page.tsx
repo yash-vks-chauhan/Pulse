@@ -5,6 +5,7 @@ import {
   ArrowRight,
   GitBranch,
   ListOrdered,
+  Loader2,
   Rocket,
   Sparkles,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../../components/ui/table';
+import { cn } from '../../../lib/utils';
 
 /**
  * Campaign detail — polls stats every 3s while the campaign is running and
@@ -101,17 +103,26 @@ function pct(value: number, base: number): number {
   return Math.round((value / Math.max(base, 1)) * 100);
 }
 
-function HeroStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+/** One cell of the divided stat strip — borders come from the parent grid. */
+function HeroStat({
+  label,
+  value,
+  sub,
+  className,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  className?: string;
+}) {
   return (
-    <Card>
-      <CardContent className="p-5">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-          {value}
-        </p>
-        {sub && <p className="mt-1 text-xs text-muted-foreground tabular-nums">{sub}</p>}
-      </CardContent>
-    </Card>
+    <div className={cn('px-5 py-4', className)}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+        {value}
+      </p>
+      {sub && <p className="mt-1 text-xs text-muted-foreground tabular-nums">{sub}</p>}
+    </div>
   );
 }
 
@@ -205,7 +216,7 @@ export default function CampaignDetailPage() {
   const base = Math.max(stats.total, 1);
 
   return (
-    <div className="mx-auto max-w-4xl pb-16">
+    <div className="mx-auto max-w-5xl pb-16">
       <Link
         href="/campaigns"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -227,7 +238,7 @@ export default function CampaignDetailPage() {
           {stats.campaign.status.toLowerCase()}
         </Badge>
         {stats.campaign.status === 'DRAFT' && (
-          <Button onClick={() => void launch()} disabled={launching} size="sm">
+          <Button onClick={() => void launch()} disabled={launching} size="sm" className="ml-auto">
             <Rocket />
             {launching ? 'Launching…' : 'Launch'}
           </Button>
@@ -243,102 +254,110 @@ export default function CampaignDetailPage() {
         {stats.campaign.status === 'RUNNING' && ' · live, refreshing every 3s'}
       </p>
 
-      {/* headline numbers */}
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <HeroStat
-          label="Delivered"
-          value={`${pct(stats.funnel.delivered, base)}%`}
-          sub={`${stats.funnel.delivered.toLocaleString()} of ${stats.total.toLocaleString()}`}
-        />
-        <HeroStat
-          label="Opened / read"
-          value={`${pct(stats.funnel.engaged, base)}%`}
-          sub={stats.funnel.engaged.toLocaleString()}
-        />
-        <HeroStat
-          label="Clicked"
-          value={`${pct(stats.funnel.clicked, base)}%`}
-          sub={stats.funnel.clicked.toLocaleString()}
-        />
-        <HeroStat
-          label="Failed"
-          value={stats.funnel.failed.toLocaleString()}
-          sub={stats.funnel.queued > 0 ? `${stats.funnel.queued.toLocaleString()} queued` : 'none queued'}
-        />
-      </div>
-
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>Delivery funnel</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {FUNNEL_STEPS.map((step) => {
-              const value = stats.funnel[step.key];
-              return (
-                <div key={step.key}>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{step.label}</span>
-                    <span className="tabular-nums">
-                      {value.toLocaleString()} ({pct(value, base)}%)
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full ${step.color} transition-all duration-700`}
-                      style={{ width: `${Math.min(100, (value / base) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
+      {/* headline numbers — one divided strip instead of floating tiles */}
+      <Card className="mt-6 overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4">
+          <HeroStat
+            label="Delivered"
+            value={`${pct(stats.funnel.delivered, base)}%`}
+            sub={`${stats.funnel.delivered.toLocaleString()} of ${stats.total.toLocaleString()}`}
+          />
+          <HeroStat
+            label="Opened / read"
+            value={`${pct(stats.funnel.engaged, base)}%`}
+            sub={stats.funnel.engaged.toLocaleString()}
+            className="border-l"
+          />
+          <HeroStat
+            label="Clicked"
+            value={`${pct(stats.funnel.clicked, base)}%`}
+            sub={stats.funnel.clicked.toLocaleString()}
+            className="border-t lg:border-l lg:border-t-0"
+          />
+          <HeroStat
+            label="Failed"
+            value={stats.funnel.failed.toLocaleString()}
+            sub={stats.funnel.queued > 0 ? `${stats.funnel.queued.toLocaleString()} queued` : 'none queued'}
+            className="border-l border-t lg:border-t-0"
+          />
+        </div>
       </Card>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="flex-row items-center gap-2.5 space-y-0">
-            <GitBranch className="h-4 w-4 text-muted-foreground" />
-            <CardTitle>Channel failover</CardTitle>
+      {/* funnel beside failover/status — one screen instead of a long stack */}
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Delivery funnel</CardTitle>
           </CardHeader>
           <CardContent>
-            {stats.failover.escalations === 0 ? (
-              <p className="text-sm text-muted-foreground">No escalations (yet).</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground tabular-nums">
-                  {stats.failover.escalations.toLocaleString()}
-                </span>{' '}
-                messages escalated to a fallback channel —{' '}
-                <span className="font-semibold text-success tabular-nums">
-                  {stats.failover.rescued.toLocaleString()}
-                </span>{' '}
-                customers rescued (reached after the primary channel failed).
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex-row items-center gap-2.5 space-y-0">
-            <ListOrdered className="h-4 w-4 text-muted-foreground" />
-            <CardTitle>Status breakdown</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-muted-foreground">
-              {Object.entries(stats.status_counts)
-                .filter(([, count]) => count > 0)
-                .map(([status, count]) => (
-                  <div key={status} className="flex justify-between">
-                    <span className="lowercase">{status}</span>
-                    <span className="font-medium text-foreground tabular-nums">
-                      {count.toLocaleString()}
-                    </span>
+            <div className="space-y-4">
+              {FUNNEL_STEPS.map((step) => {
+                const value = stats.funnel[step.key];
+                return (
+                  <div key={step.key}>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{step.label}</span>
+                      <span className="tabular-nums">
+                        {value.toLocaleString()} ({pct(value, base)}%)
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full ${step.color} transition-all duration-700`}
+                        style={{ width: `${Math.min(100, (value / base) * 100)}%` }}
+                      />
+                    </div>
                   </div>
-                ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="flex-row items-center gap-2.5 space-y-0">
+              <GitBranch className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Channel failover</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {stats.failover.escalations === 0 ? (
+                <p className="text-sm text-muted-foreground">No escalations (yet).</p>
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {stats.failover.escalations.toLocaleString()}
+                  </span>{' '}
+                  messages escalated to a fallback channel —{' '}
+                  <span className="font-semibold text-success tabular-nums">
+                    {stats.failover.rescued.toLocaleString()}
+                  </span>{' '}
+                  customers rescued (reached after the primary channel failed).
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex-row items-center gap-2.5 space-y-0">
+              <ListOrdered className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Status breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                {Object.entries(stats.status_counts)
+                  .filter(([, count]) => count > 0)
+                  .map(([status, count]) => (
+                    <div key={status} className="flex justify-between gap-2">
+                      <span className="lowercase">{status}</span>
+                      <span className="font-medium text-foreground tabular-nums">
+                        {count.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {stats.campaign.status !== 'DRAFT' && (
@@ -359,8 +378,9 @@ export default function CampaignDetailPage() {
 
             {insightsBusy && (
               <div className="space-y-3" aria-live="polite">
-                <p className="shimmer-text text-sm font-medium">
-                  ✦ Reading the event log and writing the story…
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Reading the event log and writing the story…
                 </p>
                 <Skeleton className="h-20" />
                 <div className="grid grid-cols-2 gap-3">
@@ -379,9 +399,9 @@ export default function CampaignDetailPage() {
 
             {insights && !insightsBusy && (
               <div className="space-y-4">
-                <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 text-sm leading-relaxed">
+                <div className="rounded-lg border bg-muted/40 p-4 text-sm leading-relaxed">
                   <p className="flex items-start gap-2">
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                     <span>
                       <span className="font-semibold">
                         {insights.narrative.source === 'ai' ? 'Copilot' : 'Summary'}:
@@ -458,7 +478,7 @@ export default function CampaignDetailPage() {
                 </Table>
 
                 {insights.suggested_follow_up.estimated_audience > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent/30 bg-accent/5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/40 p-4">
                     <p className="text-sm text-muted-foreground">
                       Follow up with the{' '}
                       <span className="font-semibold text-foreground tabular-nums">

@@ -2,14 +2,13 @@ import '@fontsource/instrument-serif/400.css';
 import '@fontsource/instrument-serif/400-italic.css';
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
-import { LogOut } from 'lucide-react';
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
-import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { PulseLogo } from '../components/logo';
-import { MobileNav, SidebarNav } from '../components/sidebar-nav';
-import { ThemeToggle } from '../components/theme-toggle';
+import { AppHeader } from '../components/app-header';
+import { AppSidebar } from '../components/app-sidebar';
+import { PageTransition } from '../components/page-transition';
+import { SidebarProvider } from '../components/ui/sidebar';
 import { authEnabled, readSessionCookie, SESSION_COOKIE } from '../lib/auth';
 import './globals.css';
 
@@ -41,75 +40,36 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
-}
-
 export default async function RootLayout({ children }: { children: ReactNode }) {
   // Logged-out visitors get a bare page (landing or login card), not the app
   // chrome: showing the workspace nav to someone without a session is
   // misleading even though the middleware blocks every page behind it.
+  const cookieStore = await cookies();
   let sessionName: string | undefined;
   if (authEnabled()) {
-    const session = await readSessionCookie((await cookies()).get(SESSION_COOKIE)?.value);
+    const session = await readSessionCookie(cookieStore.get(SESSION_COOKIE)?.value);
     if (!session.valid) {
       return <Shell>{children}</Shell>;
     }
     sessionName = session.name;
   }
 
+  const showLogout = authEnabled();
+  // Flash-free collapse: the official sidebar persists open/closed to this
+  // cookie, read here so the rail renders at the right width on first paint.
+  const sidebarDefaultOpen = cookieStore.get('sidebar:state')?.value !== 'false';
+
   return (
     <Shell>
-      <div className="flex min-h-screen">
-        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r px-3 py-5 md:flex">
-          <Link href="/" className="px-3">
-            <PulseLogo />
-          </Link>
-          <div className="mt-7 flex-1">
-            <SidebarNav />
-          </div>
-          <div className="border-t pt-3">
-            <div className="flex items-center gap-2.5 px-3 py-1.5">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground/80">
-                {initials(sessionName ?? 'Reviewer')}
-              </span>
-              <span
-                className="min-w-0 flex-1 truncate text-sm font-medium"
-                title={sessionName ?? 'Reviewer'}
-              >
-                {sessionName ?? 'Reviewer'}
-              </span>
-              <ThemeToggle />
-            </div>
-            {authEnabled() && (
-              <form action="/api/auth/logout" method="post">
-                <button
-                  type="submit"
-                  className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                >
-                  <LogOut className="h-4 w-4 text-muted-foreground/70" />
-                  Sign out
-                </button>
-              </form>
-            )}
-          </div>
-        </aside>
-
+      <SidebarProvider defaultOpen={sidebarDefaultOpen}>
+        <AppSidebar sessionName={sessionName} showLogout={showLogout} />
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Mobile top bar */}
-          <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-background/80 px-4 py-3 backdrop-blur md:hidden">
-            <Link href="/">
-              <PulseLogo markClassName="h-7 w-7" wordClassName="text-base" />
-            </Link>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <MobileNav />
-            </div>
-          </header>
-          <main className="flex-1 px-5 py-8 sm:px-8">{children}</main>
+          <AppHeader />
+          <main className="flex-1 p-4 sm:p-6">
+            <PageTransition>{children}</PageTransition>
+          </main>
         </div>
-      </div>
+      </SidebarProvider>
     </Shell>
   );
 }

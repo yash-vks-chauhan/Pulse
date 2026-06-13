@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
+import { cn } from '../../lib/utils';
 
 /**
  * Campaign list — server component. Fetches the CRM API directly with the
@@ -51,16 +52,15 @@ const STATUS_VARIANT: Record<Campaign['status'], 'secondary' | 'accent' | 'succe
   COMPLETED: 'success',
 };
 
-function StatTile({ label, value }: { label: string; value: string }) {
+/** One cell of the divided stat strip — borders come from the parent grid. */
+function StatTile({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
-    <Card>
-      <CardContent className="p-5">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-          {value}
-        </p>
-      </CardContent>
-    </Card>
+    <div className={cn('px-5 py-4', className)}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -97,11 +97,21 @@ export default async function CampaignsPage() {
 
       {campaigns !== null && (
         <>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <StatTile label="Campaigns" value={total.toLocaleString()} />
-            <StatTile label="Customers reached" value={reached.toLocaleString()} />
-            <StatTile label="Running now" value={running.toLocaleString()} />
-          </div>
+          <Card className="mt-6 overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-3">
+              <StatTile label="Campaigns" value={total.toLocaleString()} />
+              <StatTile
+                label="Customers reached"
+                value={reached.toLocaleString()}
+                className="border-t sm:border-l sm:border-t-0"
+              />
+              <StatTile
+                label="Running now"
+                value={running.toLocaleString()}
+                className="border-t sm:border-l sm:border-t-0"
+              />
+            </div>
+          </Card>
 
           {campaigns.length === 0 ? (
             <Card className="mt-4">

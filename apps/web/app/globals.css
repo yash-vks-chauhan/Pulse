@@ -30,6 +30,18 @@
   --warning: 32 95% 44%;
   --ring: 240 5.9% 10%;
   --radius: 0.625rem;
+
+  /* Sidebar surface — its own palette so the nav rail reads as a distinct
+   * panel from the white content area. Fully monochrome: the active/hover route
+   * uses the accent surface with near-black text, no colour accent. */
+  --sidebar: 240 9% 98%;
+  --sidebar-foreground: 240 6% 30%;
+  --sidebar-border: 240 6% 90%;
+  --sidebar-accent: 240 5% 93%;
+  --sidebar-accent-foreground: 240 8% 12%;
+  --sidebar-ring: 240 5% 65%;
+  --sidebar-primary: 240 6% 10%;
+  --sidebar-primary-foreground: 0 0% 98%;
 }
 
 .dark {
@@ -53,6 +65,18 @@
   --success: 160 84% 45%;
   --warning: 38 92% 55%;
   --ring: 240 5% 65%;
+
+  /* Sidebar surface — elevated a touch above the page so the rail still reads
+   * as its own panel in the dark. Monochrome: active/hover route uses the
+   * accent surface with near-white text, no colour accent. */
+  --sidebar: 240 8% 7%;
+  --sidebar-foreground: 240 6% 78%;
+  --sidebar-border: 240 5% 15%;
+  --sidebar-accent: 240 5% 14%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-ring: 240 5% 45%;
+  --sidebar-primary: 0 0% 98%;
+  --sidebar-primary-foreground: 240 6% 10%;
 }
 
 @layer base {
@@ -193,6 +217,18 @@
     );
   }
 
+  /* Copilot ambient field falloff: light anchored to the top-left (behind the
+   * header + rail), dissolving into the page toward the bottom-right so the
+   * field reads as a lit, directional pool rather than a clipped rectangle. */
+  .ambient-mask {
+    -webkit-mask-image: radial-gradient(
+      140% 140% at 0% 0%,
+      black 30%,
+      transparent 92%
+    );
+    mask-image: radial-gradient(140% 140% at 0% 0%, black 30%, transparent 92%);
+  }
+
   /* Hairline ring used on framed previews (1px crisp border + soft shadow) */
   .frame-ring {
     box-shadow:
@@ -257,10 +293,84 @@
   will-change: transform;
 }
 
+/* ---- workspace micro-motion (vue-bits "Animated List" / "Fade Content") ----
+ * rise-in: one soft rise + de-blur on mount; stagger via --rise-delay.
+ * Used for AI-proposed rules, draft variants, sample rows, panel load. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+/* ---- AI thinking border (vue-bits "Star Border") ----
+ * A soft comet sweeps the element's 1px border while the copilot works.
+ * Gradient border via double background; angle animated through @property
+ * (browsers without @property support simply show a static border). */
+@property --pulse-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.ai-thinking {
+  border-color: transparent !important;
+  background:
+    linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+    conic-gradient(
+        from var(--pulse-angle),
+        hsl(var(--border)) 0deg,
+        hsl(var(--accent) / 0.45) 45deg,
+        hsl(var(--accent)) 90deg,
+        hsl(var(--accent) / 0.45) 135deg,
+        hsl(var(--border)) 180deg,
+        hsl(var(--border)) 360deg
+      )
+      border-box;
+  box-shadow: 0 0 22px -8px hsl(var(--accent) / 0.45);
+  animation: pulse-angle-spin 1.6s linear infinite;
+}
+
+@keyframes pulse-angle-spin {
+  to {
+    --pulse-angle: 360deg;
+  }
+}
+
+/* Page enter — content fades in on route change (PageTransition wrapper).
+ * Opacity only: a transform/filter here would create a containing block and
+ * break position:fixed page backgrounds (e.g. the copilot grainient). */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page-enter {
+  animation: page-enter 0.32s ease both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
   .reveal,
   .split-word,
-  .blur-in {
+  .blur-in,
+  .rise-in {
     animation: none;
     transition: none;
     opacity: 1;
@@ -269,7 +379,8 @@
   }
   .aurora-blob,
   .animate-float,
-  .shimmer-text {
+  .shimmer-text,
+  .ai-thinking {
     animation: none;
   }
 }

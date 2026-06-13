@@ -56,7 +56,7 @@ const CATALOG = [
 
 /** Heavy-tailed order count (mean ≈ 5): most buy 1-3 times, a few are whales. */
 function drawOrderCount(): number {
-  const roll = Math.random();
+  const roll = faker.number.float({ min: 0, max: 1 });
   if (roll < 0.22) return 1;
   if (roll < 0.44) return 2;
   if (roll < 0.64) return 3;
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
   const customers: CustomerRow[] = [];
   const orders: OrderRow[] = [];
 
-  for (let i = 0; i < CUSTOMER_COUNT && orders.length < TARGET_ORDER_COUNT + 2000; i++) {
+  for (let i = 0; i < CUSTOMER_COUNT; i++) {
     const id = randomUUID();
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
@@ -119,7 +119,7 @@ async function main(): Promise<void> {
       .email({ firstName, lastName, provider: 'example.com' })
       .toLowerCase();
     const phone = `+91 ${faker.string.numeric(5)} ${faker.string.numeric(5)}`;
-    const isChurned = Math.random() < 0.35;
+    const isChurned = faker.number.float({ min: 0, max: 1 }) < 0.35;
     const orderCount = drawOrderCount();
 
     let totalSpend = 0;
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
       name,
       emailEnc: pii.encrypt(email),
       emailHash: pii.blindIndex(email),
-      phoneEnc: Math.random() < 0.95 ? pii.encrypt(phone) : null,
+      phoneEnc: faker.number.float({ min: 0, max: 1 }) < 0.95 ? pii.encrypt(phone) : null,
       city: faker.helpers.arrayElement(CITIES),
       tags: faker.helpers.arrayElements(TAG_POOL, { min: 0, max: 3 }),
       totalSpend,
@@ -218,7 +218,7 @@ async function main(): Promise<void> {
 
   for (const customer of audience) {
     const commId = randomUUID();
-    const roll = Math.random();
+    const roll = faker.number.float({ min: 0, max: 1 });
     // Funnel: 7% failed, then delivered → 60% read → 22% clicked.
     let status: CommunicationStatus;
     if (roll < 0.07) status = 'FAILED';
