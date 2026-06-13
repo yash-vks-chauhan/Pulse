@@ -14,7 +14,7 @@ Welcome to the complete, self-contained **Shadcn UI & Tailwind CSS Blueprint Man
 6. [💬 Dialogs, Overlays & Drawers](#-dialogs-overlays--drawers)
    - *Dialog, Drawer, Sheet, Popover, Tooltip, Hover Card, Alert Dialog*
 7. [🧭 Navigation, Menus & Tabs](#-navigation-menus--tabs)
-   - *Navigation Menu, Dropdown Menu, Menubar, Tabs, Breadcrumb, Pagination*
+   - *Sidebar, Navigation Menu, Dropdown Menu, Menubar, Tabs, Breadcrumb, Pagination*
 8. [📊 Data Display, Lists & Progress](#-data-display-lists--progress)
    - *Table, Badge, Avatar, Progress, Scroll Area, Separator, Skeleton, Alert, Carousel*
 9. [📦 Structural Layout & Containers](#-structural-layout--containers)
@@ -28,7 +28,7 @@ Welcome to the complete, self-contained **Shadcn UI & Tailwind CSS Blueprint Man
 
 ## 🎨 Core Design System & Configuration
 
-### A. Color Tokens Setup (`frontend/app/globals.css`)
+### A. Color Tokens Setup (`apps/web/app/globals.css`)
 This setup uses a professional slate, deep indigo, and emerald accent system.
 
 ```css
@@ -58,6 +58,17 @@ This setup uses a professional slate, deep indigo, and emerald accent system.
     --input: 214.3 31.8% 91.4%;
     --ring: 262.1 83.3% 57.8%;
     --radius: 0.75rem;
+
+    /* Official shadcn v3 Sidebar tokens. Keep these separate from app tokens
+       so the sidebar can intentionally have its own surface, accent, and border. */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
@@ -78,6 +89,15 @@ This setup uses a professional slate, deep indigo, and emerald accent system.
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 263.4 90% 64.3%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 5.9% 10%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -87,7 +107,7 @@ This setup uses a professional slate, deep indigo, and emerald accent system.
 }
 ```
 
-### B. Tailwind Dynamic Config (`tailwind.config.ts`)
+### B. Tailwind Dynamic Config (`apps/web/tailwind.config.ts`)
 ```typescript
 import type { Config } from "tailwindcss"
 
@@ -110,6 +130,16 @@ const config: Config = {
         accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
         popover: { DEFAULT: "hsl(var(--popover))", foreground: "hsl(var(--popover-foreground))" },
         card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background) / <alpha-value>)",
+          foreground: "hsl(var(--sidebar-foreground) / <alpha-value>)",
+          primary: "hsl(var(--sidebar-primary) / <alpha-value>)",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground) / <alpha-value>)",
+          accent: "hsl(var(--sidebar-accent) / <alpha-value>)",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground) / <alpha-value>)",
+          border: "hsl(var(--sidebar-border) / <alpha-value>)",
+          ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
+        },
       },
       borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" },
       keyframes: {
@@ -668,7 +698,7 @@ export function DrawerDemo() {
 
 ### 3. Sheet
 * **CLI Command**: `npx shadcn@latest add sheet`
-* **Desktop / Mobile Guidelines**: Sheets are slide-out panels typically used for sidebars. Use `side="left"` for primary mobile navigation grids, and `side="right"` for secondary utility drawers.
+* **Desktop / Mobile Guidelines**: Use `Sheet` for temporary slide-over panels such as filters, quick settings, and secondary utility drawers. Do not document a Sheet as the primary app sidebar; use the official `Sidebar` component in the Navigation section for persistent app navigation. The official `Sidebar` already handles the mobile drawer pattern.
 * **Blueprint**:
 ```tsx
 import {
@@ -686,18 +716,18 @@ export function SheetDemo() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" aria-label="Open Sidebar Menu">
+        <Button variant="outline" size="icon" aria-label="Open utility drawer">
           <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[300px]">
         <SheetHeader>
-          <SheetTitle>GlassBox Navigation</SheetTitle>
-          <SheetDescription>Navigate auditable sections.</SheetDescription>
+          <SheetTitle>Workspace Filters</SheetTitle>
+          <SheetDescription>Adjust the current page without changing the app shell.</SheetDescription>
         </SheetHeader>
         <div className="flex flex-col gap-3 py-6 font-semibold">
-          <a href="#" className="p-2 hover:bg-accent rounded-lg">Home Advisor</a>
-          <a href="#" className="p-2 hover:bg-accent rounded-lg">Risk Dashboard</a>
+          <button className="rounded-lg p-2 text-left hover:bg-accent">High priority only</button>
+          <button className="rounded-lg p-2 text-left hover:bg-accent">Include archived rows</button>
         </div>
       </SheetContent>
     </Sheet>
@@ -822,9 +852,635 @@ export function AlertDialogDemo() {
 
 ## 🧭 Navigation, Menus & Tabs
 
-### 1. Navigation Menu
+### 1. Sidebar
+* **CLI Command**: `npx shadcn@latest add sidebar`
+* **Official v3 Source**: `https://v3.shadcn.com/docs/components/sidebar`
+* **Repo Status**: This Pulse repo currently has a custom sidebar shell in `apps/web/app/layout.tsx` and `apps/web/components/sidebar-nav.tsx`. It does **not** currently have `apps/web/components/ui/sidebar.tsx`, `components.json`, `Sheet`, `Collapsible`, `ScrollArea`, or the official `SidebarProvider`. Add the official sidebar only when you are ready to migrate the custom shell.
+* **Purpose**: Use the official `Sidebar` for application chrome: persistent desktop navigation, mobile drawer navigation, icon-collapsed states, account/workspace switchers, grouped nav, submenu trees, and rail toggles. Use `Sheet` only for temporary utility drawers.
+
+#### A. Installation and Files
+The CLI installs `components/ui/sidebar.tsx` and supporting primitives. In a repo with a normal shadcn setup, run:
+
+```bash
+npx shadcn@latest add sidebar
+```
+
+For this monorepo, confirm shadcn knows the web app paths before running the command:
+
+```json
+{
+  "tailwind": {
+    "config": "apps/web/tailwind.config.ts",
+    "css": "apps/web/app/globals.css"
+  },
+  "aliases": {
+    "components": "@/components",
+    "ui": "@/components/ui",
+    "utils": "@/lib/utils",
+    "hooks": "@/hooks"
+  }
+}
+```
+
+The generated component expects:
+- `@/components/ui/sidebar` as the official sidebar component source.
+- `@/lib/utils` for `cn()`.
+- Sidebar color tokens in `globals.css`.
+- Tailwind color keys for `sidebar`, `sidebar-foreground`, `sidebar-accent`, `sidebar-border`, and related utilities.
+- Supporting UI primitives such as `Tooltip`, `Sheet`, `Separator`, `Skeleton`, and often `Collapsible` for nested groups.
+
+#### B. Required Sidebar Theme Tokens
+Keep sidebar tokens separate from the rest of the app tokens. This allows a sidebar with a different surface, border, and accent treatment than the main page.
+
+```css
+@layer base {
+  :root {
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 5.9% 10%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+```
+
+Map the same tokens in `tailwind.config.ts` so classes like `bg-sidebar`, `text-sidebar-foreground`, `border-sidebar-border`, and `ring-sidebar-ring` work.
+
+```ts
+sidebar: {
+  DEFAULT: "hsl(var(--sidebar-background) / <alpha-value>)",
+  foreground: "hsl(var(--sidebar-foreground) / <alpha-value>)",
+  primary: "hsl(var(--sidebar-primary) / <alpha-value>)",
+  "primary-foreground": "hsl(var(--sidebar-primary-foreground) / <alpha-value>)",
+  accent: "hsl(var(--sidebar-accent) / <alpha-value>)",
+  "accent-foreground": "hsl(var(--sidebar-accent-foreground) / <alpha-value>)",
+  border: "hsl(var(--sidebar-border) / <alpha-value>)",
+  ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
+}
+```
+
+#### C. Core Anatomy
+A complete sidebar is assembled from small parts:
+
+| Part | Role |
+| :--- | :--- |
+| `SidebarProvider` | Owns open/collapsed state, mobile state, keyboard shortcut behavior, and persisted state. |
+| `Sidebar` | The root sidebar container. Controls side, variant, collapsible behavior, and state data attributes. |
+| `SidebarHeader` | Sticky top area for logo, workspace switcher, search, or team selector. |
+| `SidebarContent` | Scrollable middle area for groups and menus. |
+| `SidebarGroup` | Section wrapper for a logical navigation group. |
+| `SidebarGroupLabel` | Label for a group. Can render as a trigger with `asChild`. |
+| `SidebarGroupAction` | Small action aligned with a group label, such as add project. |
+| `SidebarGroupContent` | The group body, usually holding `SidebarMenu`. |
+| `SidebarMenu` | Menu list wrapper. |
+| `SidebarMenuItem` | One menu row. |
+| `SidebarMenuButton` | Main clickable row. Use `asChild` for `Link` or `a`. |
+| `SidebarMenuAction` | Secondary action inside the same row, independent from the main button. |
+| `SidebarMenuBadge` | Count/status badge aligned inside a menu item. |
+| `SidebarMenuSub` | Nested submenu wrapper. |
+| `SidebarMenuSubItem` | One nested submenu row. |
+| `SidebarMenuSubButton` | Clickable nested submenu item. |
+| `SidebarMenuSkeleton` | Loading placeholder for menu rows. |
+| `SidebarSeparator` | Visual divider inside the sidebar. |
+| `SidebarTrigger` | Button that toggles the sidebar from page chrome. |
+| `SidebarRail` | Thin desktop rail that can be clicked to toggle collapse. |
+| `SidebarInset` | Main content wrapper used with `variant="inset"`. |
+| `useSidebar` | Hook for custom controls and state-aware behavior. |
+
+#### D. Application Shell Blueprint
+Wrap the app shell in `SidebarProvider`, render the sidebar before the main content, and put `SidebarTrigger` in the main chrome.
+
+```tsx
+import { AppSidebar } from "@/components/app-sidebar"
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <main className="min-w-0 flex-1">
+        <div className="sticky top-0 z-40 flex h-14 items-center border-b bg-background/80 px-4 backdrop-blur">
+          <SidebarTrigger />
+        </div>
+        {children}
+      </main>
+    </SidebarProvider>
+  )
+}
+```
+
+When using `variant="inset"`, set that prop on the `Sidebar` inside `AppSidebar` and wrap the main content in `SidebarInset` so the page spacing and rounded inset behavior match the component.
+
+```tsx
+<SidebarProvider>
+  <AppSidebar />
+  <SidebarInset>
+    <main>{children}</main>
+  </SidebarInset>
+</SidebarProvider>
+```
+
+#### E. App Sidebar Blueprint
+Use header/content/footer consistently. Put scrollable navigation inside `SidebarContent`, not in the outer `Sidebar`.
+
+```tsx
+import { LayoutDashboard, Send, Settings, Users } from "lucide-react"
+import Link from "next/link"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from "@/components/ui/sidebar"
+
+const navItems = [
+  { title: "Overview", href: "/", icon: LayoutDashboard },
+  { title: "Campaigns", href: "/campaigns", icon: Send },
+  { title: "Segments", href: "/segments", icon: Users },
+  { title: "Settings", href: "/settings", icon: Settings },
+]
+
+export function AppSidebar() {
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/">
+                <span className="flex size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                  P
+                </span>
+                <span className="truncate font-semibold">Pulse</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild tooltip={item.title}>
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter />
+      <SidebarRail />
+    </Sidebar>
+  )
+}
+```
+
+#### F. `SidebarProvider` State, Width, Shortcut, and Persistence
+Use `SidebarProvider` once around the shell that owns the sidebar.
+
+| Prop | Type | Use |
+| :--- | :--- | :--- |
+| `defaultOpen` | `boolean` | Initial uncontrolled desktop state. Read the cookie on the server in Next.js if you want reload persistence without layout flash. |
+| `open` | `boolean` | Controlled desktop state. |
+| `onOpenChange` | `(open: boolean) => void` | Controlled setter for desktop state. |
+
+Important internal constants in `components/ui/sidebar.tsx`:
+- `SIDEBAR_WIDTH`: desktop expanded width, commonly `16rem`.
+- `SIDEBAR_WIDTH_MOBILE`: mobile sheet width, commonly wider than desktop.
+- `SIDEBAR_WIDTH_ICON`: collapsed icon width.
+- `SIDEBAR_KEYBOARD_SHORTCUT`: default key is `b`, producing `Cmd+B` on macOS and `Ctrl+B` on Windows/Linux.
+- `SIDEBAR_COOKIE_NAME`: default persisted state cookie name, commonly `sidebar_state`.
+- `SIDEBAR_COOKIE_MAX_AGE`: cookie lifetime.
+
+Set widths globally by editing the constants in `sidebar.tsx`. For one-off layouts or multiple sidebars, set CSS variables on the provider:
+
+```tsx
+<SidebarProvider
+  style={
+    {
+      "--sidebar-width": "18rem",
+      "--sidebar-width-mobile": "20rem",
+      "--sidebar-width-icon": "3.5rem",
+    } as React.CSSProperties
+  }
+>
+  <AppSidebar />
+</SidebarProvider>
+```
+
+In Next.js App Router, read the persisted cookie before rendering:
+
+```tsx
+import { cookies } from "next/headers"
+import { SidebarProvider } from "@/components/ui/sidebar"
+
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies()
+  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true"
+
+  return (
+    <SidebarProvider defaultOpen={defaultOpen}>
+      <AppSidebar />
+      {children}
+    </SidebarProvider>
+  )
+}
+```
+
+#### G. `Sidebar` Props
+| Prop | Values | Effect |
+| :--- | :--- | :--- |
+| `side` | `"left"` or `"right"` | Places the sidebar on the left or right. |
+| `variant` | `"sidebar"`, `"floating"`, `"inset"` | Controls how the sidebar surface relates to page content. |
+| `collapsible` | `"offcanvas"`, `"icon"`, `"none"` | Controls collapse mode. |
+
+Use `collapsible="offcanvas"` for slide-away desktop behavior, `collapsible="icon"` when the desktop shell should collapse to icons, and `collapsible="none"` for a fixed non-collapsible sidebar.
+
+Use `variant="floating"` for a separated rounded panel, and `variant="inset"` with `SidebarInset` when the main page should sit as an inset surface.
+
+#### H. `useSidebar` Hook
+Use this hook for custom triggers, route-aware mobile close behavior, analytics, or state-specific styling.
+
+```tsx
+"use client"
+
+import { useSidebar } from "@/components/ui/sidebar"
+
+export function CustomSidebarToggle() {
+  const { state, open, setOpen, openMobile, setOpenMobile, isMobile, toggleSidebar } =
+    useSidebar()
+
+  return (
+    <button
+      type="button"
+      data-state={state}
+      aria-pressed={isMobile ? openMobile : open}
+      onClick={toggleSidebar}
+    >
+      Toggle navigation
+    </button>
+  )
+}
+```
+
+Hook values:
+- `state`: `"expanded"` or `"collapsed"` for desktop styling.
+- `open` / `setOpen`: desktop state.
+- `openMobile` / `setOpenMobile`: mobile drawer state.
+- `isMobile`: responsive branch used by the component.
+- `toggleSidebar`: toggles the correct desktop or mobile state.
+
+#### I. Header and Footer Patterns
+Header and footer are sticky slots. Keep them compact and use `SidebarMenu` rows so icon collapse, active styles, and tooltips stay consistent.
+
+```tsx
+<SidebarHeader>
+  <SidebarMenu>
+    <SidebarMenuItem>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <SidebarMenuButton>
+            Select workspace
+            <ChevronDown className="ml-auto" />
+          </SidebarMenuButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-[--radix-popper-anchor-width]">
+          <DropdownMenuItem>Pulse Growth</DropdownMenuItem>
+          <DropdownMenuItem>Pulse Ops</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
+  </SidebarMenu>
+</SidebarHeader>
+```
+
+```tsx
+<SidebarFooter>
+  <SidebarMenu>
+    <SidebarMenuItem>
+      <SidebarMenuButton>
+        <User2 />
+        <span className="truncate">Reviewer</span>
+        <ChevronUp className="ml-auto" />
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  </SidebarMenu>
+</SidebarFooter>
+```
+
+#### J. Groups, Actions, and Collapsible Groups
+Use `SidebarGroup` for each major section. Use `SidebarGroupAction` for small section-level actions, and wrap a group in `Collapsible` when the whole section should expand/collapse.
+
+```tsx
+<SidebarGroup>
+  <SidebarGroupLabel>Projects</SidebarGroupLabel>
+  <SidebarGroupAction title="Add project">
+    <Plus />
+    <span className="sr-only">Add project</span>
+  </SidebarGroupAction>
+  <SidebarGroupContent>
+    <SidebarMenu>{/* items */}</SidebarMenu>
+  </SidebarGroupContent>
+</SidebarGroup>
+```
+
+```tsx
+<Collapsible defaultOpen className="group/collapsible">
+  <SidebarGroup>
+    <SidebarGroupLabel asChild>
+      <CollapsibleTrigger>
+        Help
+        <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+      </CollapsibleTrigger>
+    </SidebarGroupLabel>
+    <CollapsibleContent>
+      <SidebarGroupContent />
+    </CollapsibleContent>
+  </SidebarGroup>
+</Collapsible>
+```
+
+#### K. Menu Buttons, Active State, Actions, Badges, and Submenus
+Use `SidebarMenuButton asChild` for `next/link` so the actual link remains semantic. Wrap labels in `<span>` so the component can truncate text correctly.
+
+```tsx
+<SidebarMenuItem>
+  <SidebarMenuButton asChild isActive tooltip="Campaigns">
+    <Link href="/campaigns">
+      <Send />
+      <span>Campaigns</span>
+    </Link>
+  </SidebarMenuButton>
+  <SidebarMenuBadge>12</SidebarMenuBadge>
+</SidebarMenuItem>
+```
+
+Use `SidebarMenuAction` for row-level secondary actions. It should not replace the main link.
+
+```tsx
+<SidebarMenuItem>
+  <SidebarMenuButton asChild>
+    <Link href="/projects/acme">
+      <Folder />
+      <span>Acme</span>
+    </Link>
+  </SidebarMenuButton>
+  <DropdownMenu>
+    <DropdownMenuTrigger asChild>
+      <SidebarMenuAction>
+        <MoreHorizontal />
+        <span className="sr-only">Project actions</span>
+      </SidebarMenuAction>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent side="right" align="start">
+      <DropdownMenuItem>Edit</DropdownMenuItem>
+      <DropdownMenuItem>Archive</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</SidebarMenuItem>
+```
+
+Use `SidebarMenuSub`, `SidebarMenuSubItem`, and `SidebarMenuSubButton` for nested links. For collapsible nested menus, wrap the item with `Collapsible`.
+
+```tsx
+<SidebarMenu>
+  <Collapsible defaultOpen className="group/collapsible">
+    <SidebarMenuItem>
+      <CollapsibleTrigger asChild>
+        <SidebarMenuButton>
+          <Folder />
+          <span>Projects</span>
+          <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+        </SidebarMenuButton>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <SidebarMenuSub>
+          <SidebarMenuSubItem>
+            <SidebarMenuSubButton asChild>
+              <Link href="/projects/acme">Acme</Link>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        </SidebarMenuSub>
+      </CollapsibleContent>
+    </SidebarMenuItem>
+  </Collapsible>
+</SidebarMenu>
+```
+
+#### L. Triggers, Rail, Separators, and Inset
+Place `SidebarTrigger` outside the sidebar, usually in the page header. Use `SidebarRail` inside the sidebar for desktop rail toggling. Use `SidebarSeparator` between major visual zones.
+
+```tsx
+<SidebarProvider>
+  <Sidebar>
+    <SidebarHeader />
+    <SidebarSeparator />
+    <SidebarContent>
+      <SidebarGroup />
+      <SidebarSeparator />
+      <SidebarGroup />
+    </SidebarContent>
+    <SidebarFooter />
+    <SidebarRail />
+  </Sidebar>
+  <main>
+    <SidebarTrigger />
+  </main>
+</SidebarProvider>
+```
+
+#### M. Data Fetching and Loading States
+For server-rendered menus, fetch data in a Server Component and wrap it with `Suspense`. Use `SidebarMenuSkeleton` to preserve row height and icon spacing.
+
+```tsx
+function ProjectsSkeleton() {
+  return (
+    <SidebarMenu>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <SidebarMenuItem key={index}>
+          <SidebarMenuSkeleton showIcon />
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  )
+}
+
+async function ProjectsMenu() {
+  const projects = await fetchProjects()
+
+  return (
+    <SidebarMenu>
+      {projects.map((project) => (
+        <SidebarMenuItem key={project.id}>
+          <SidebarMenuButton asChild>
+            <Link href={`/projects/${project.id}`}>
+              <Folder />
+              <span>{project.name}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  )
+}
+```
+
+The same visual pattern works with SWR or React Query: render `SidebarMenuSkeleton` while loading, render an empty state when data is missing, then render menu rows.
+
+#### N. Controlled Sidebar
+Use controlled state when the sidebar must sync with app state, user preferences, analytics, or tests.
+
+```tsx
+"use client"
+
+import * as React from "react"
+import { SidebarProvider } from "@/components/ui/sidebar"
+
+export function ControlledShell({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(true)
+
+  return (
+    <SidebarProvider open={open} onOpenChange={setOpen}>
+      {children}
+    </SidebarProvider>
+  )
+}
+```
+
+#### O. Styling Rules and State Selectors
+Sidebar styling is token-driven and state-driven. Prefer the component data attributes and named group/peer selectors over duplicating state in local React state.
+
+Common utility classes:
+- `bg-sidebar`: root sidebar background.
+- `text-sidebar-foreground`: default sidebar text color.
+- `bg-sidebar-accent text-sidebar-accent-foreground`: hover/active soft row surface.
+- `bg-sidebar-primary text-sidebar-primary-foreground`: strong selected/logo/accent surface.
+- `border-sidebar-border`: sidebar border and separators.
+- `ring-sidebar-ring`: focus ring color.
+
+Important data attributes:
+- `data-state="expanded | collapsed"` on the sidebar wrapper.
+- `data-collapsible="offcanvas | icon"` when collapsed.
+- `data-variant="sidebar | floating | inset"`.
+- `data-side="left | right"`.
+- `data-active="true"` on active menu buttons.
+
+State-based recipes:
+
+```tsx
+// Hide an entire group when the sidebar is collapsed to icon mode.
+<SidebarGroup className="group-data-[collapsible=icon]:hidden" />
+```
+
+```tsx
+// Keep a row action visible when the menu button is active.
+<SidebarMenuItem>
+  <SidebarMenuButton isActive />
+  <SidebarMenuAction className="peer-data-[active=true]/menu-button:opacity-100" />
+</SidebarMenuItem>
+```
+
+```tsx
+// Rotate collapsible indicators without extra React state.
+<ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+```
+
+```tsx
+// Adjust spacing for right-side sidebars.
+<Sidebar side="right" className="data-[side=right]:border-l data-[side=left]:border-r" />
+```
+
+Design rules:
+- Keep row heights consistent. Use `SidebarMenuButton` sizes instead of hand-rolled padding whenever possible.
+- Icon-only collapsed mode needs tooltips or accessible labels.
+- Do not hide the `<span>` label manually; let the sidebar's icon mode handle it.
+- Use `truncate` for workspace names and user names.
+- Do not put horizontal scrolling navigation rails inside the mobile viewport. The official sidebar uses a mobile drawer instead.
+- Keep destructive row actions in dropdowns or confirmations. Do not make destructive actions the primary menu button.
+- Avoid nested cards inside the sidebar. The sidebar itself is already a surface.
+
+#### P. Mobile Behavior
+The official sidebar switches to a mobile drawer/sheet behavior at the component's mobile breakpoint. Use `openMobile` and `setOpenMobile` from `useSidebar()` for custom mobile controls. If a mobile menu item should close the drawer after navigation, call `setOpenMobile(false)` from a client-side link wrapper.
+
+```tsx
+"use client"
+
+import Link from "next/link"
+import { useSidebar } from "@/components/ui/sidebar"
+
+export function MobileAwareSidebarLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  return (
+    <Link href={href} onClick={() => isMobile && setOpenMobile(false)}>
+      {children}
+    </Link>
+  )
+}
+```
+
+#### Q. Pulse Migration Notes
+Current Pulse layout:
+- Desktop: custom `aside` in `apps/web/app/layout.tsx` with `hidden md:flex`, `w-60`, `h-screen`, `border-r`, and `SidebarNav`.
+- Mobile: `MobileNav` uses `DropdownMenu`, not the official mobile sidebar drawer.
+- Auth: logged-out users get a bare shell; signed-in users get the app chrome.
+- Theme: a pre-paint script toggles `.dark`; the guide should not assume `next-themes` is installed.
+
+To migrate Pulse to the official shadcn Sidebar:
+1. Add or verify `components.json` for `apps/web`.
+2. Run `npx shadcn@latest add sidebar`.
+3. Add `--sidebar-*` tokens to `apps/web/app/globals.css`.
+4. Add the `sidebar` color map to `apps/web/tailwind.config.ts`.
+5. Move `PulseLogo`, grouped nav items, account footer, `ThemeToggle`, and logout into `AppSidebar`.
+6. Replace the custom `aside` and `MobileNav` with `SidebarProvider`, `AppSidebar`, `SidebarTrigger`, and optionally `SidebarInset`.
+7. Preserve the logged-out bare shell branch in `RootLayout`.
+8. Use `SidebarMenuButton isActive` for route-active styles currently handled by `cn(active ? ...)`.
+
+#### R. Sidebar Changelog Notes to Keep in Mind
+- `setOpen` should write the resolved boolean value to the sidebar cookie, including callback-style updates.
+- `text-sidebar-foreground` belongs on the `Sidebar`, not only on the provider.
+- The `useSidebar` error message should reference `SidebarProvider`, because the hook must be used under the provider.
+
+### 2. Navigation Menu
 * **CLI Command**: `npx shadcn@latest add navigation-menu`
-* **Desktop / Mobile Guidelines**: Perfect for complex desktop header links. Always hide this navbar component on mobile, replacing it with a collapsible slide-out sidebar or `Sheet`.
+* **Desktop / Mobile Guidelines**: Perfect for complex desktop header links. Hide this component on mobile and route primary app navigation through the official `Sidebar` when the product needs persistent navigation.
 * **Blueprint**:
 ```tsx
 import {
@@ -857,7 +1513,7 @@ export function NavigationMenuDemo() {
 }
 ```
 
-### 2. Dropdown Menu
+### 3. Dropdown Menu
 * **CLI Command**: `npx shadcn@latest add dropdown-menu`
 * **Desktop / Mobile Guidelines**: Use dropdowns for secondary header menus or quick actions. Ensure dropdown options are spaced out (`py-3`) on mobile for easy tap selection.
 * **Blueprint**:
@@ -889,7 +1545,7 @@ export function DropdownMenuDemo() {
 }
 ```
 
-### 3. Menubar
+### 4. Menubar
 * **CLI Command**: `npx shadcn@latest add menubar`
 * **Desktop / Mobile Guidelines**: Ideal for complex web apps (e.g. mock code editors). On mobile, replace this with a nested popup menu inside a mobile sheet.
 * **Blueprint**:
@@ -919,7 +1575,7 @@ export function MenubarDemo() {
 }
 ```
 
-### 4. Tabs
+### 5. Tabs
 * **CLI Command**: `npx shadcn@latest add tabs`
 * **Desktop / Mobile Guidelines**: On mobile screens, set the tab triggers list to scroll horizontally (`overflow-x-auto`) to prevent labels from compressing or wrapping onto multiple lines.
 * **Blueprint**:
@@ -956,7 +1612,7 @@ export function TabsDemo() {
 }
 ```
 
-### 5. Breadcrumb
+### 6. Breadcrumb
 * **CLI Command**: `npx shadcn@latest add breadcrumb`
 * **Desktop / Mobile Guidelines**: Perfect for deeply-nested directories. On mobile screens, truncate middle items dynamically inside an ellipsis menu to save horizontal space.
 * **Blueprint**:
@@ -991,7 +1647,7 @@ export function BreadcrumbDemo() {
 }
 ```
 
-### 6. Pagination
+### 7. Pagination
 * **CLI Command**: `npx shadcn@latest add pagination`
 * **Desktop / Mobile Guidelines**: Avoid rendering too many visible page index buttons on mobile viewports. On smaller screens, simplify pagination to standard 'Previous' and 'Next' button links.
 * **Blueprint**:
@@ -1318,7 +1974,7 @@ export function ResizableDemo() {
   return (
     <div className="hidden lg:block border rounded-xl overflow-hidden shadow-sm h-[200px] bg-card">
       <ResizablePanelGroup direction="horizontal">
-        <ResizablePanel defaultSize={30} className="p-4 text-sm font-semibold">Sidebar controls</ResizablePanel>
+        <ResizablePanel defaultSize={30} className="p-4 text-sm font-semibold">Filter controls</ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={70} className="p-4 text-sm text-muted-foreground">Main workspace content</ResizablePanel>
       </ResizablePanelGroup>
@@ -1641,8 +2297,8 @@ Use these standardized Tailwind typographic utilities to style text blocks. This
 | CSS Breakpoint | Screen Width Range | Recommended Viewport Layout Model |
 | :--- | :--- | :--- |
 | **`sm`** | $\ge 640\text{px}$ | Small phone / vertical stacking. Form buttons expand to full width (`w-full`). |
-| **`md`** | $\ge 768\text{px}$ | Tablet / dual columns. Side navigation remains collapsed inside hamburger drawer (`Sheet`). |
-| **`lg`** | $\ge 1024\text{px}$ | Small desktop / persistent sidebar. Navigation layout expands, side overlays convert to sidebars. |
+| **`md`** | $\ge 768\text{px}$ | Tablet / dual columns. Keep dense app navigation in the official `Sidebar` mobile drawer behavior until the desktop breakpoint. |
+| **`lg`** | $\ge 1024\text{px}$ | Small desktop / persistent sidebar. Official `Sidebar` can render expanded, icon-collapsed, floating, or inset depending on product density. |
 | **`xl`** | $\ge 1280\text{px}$ | Desktop / multi-column grid layout. Wide cards and grids expand across screen. |
 | **`2xl`** | $\ge 1536\text{px}$ | Ultra-wide desktop. Layout centered using `mx-auto max-w-7xl` to prevent stretching. |
 
@@ -1651,4 +2307,4 @@ To comply with standard accessibility guidelines, ensure all mobile interactive 
 - **Minimum Tap Size**: $44\text{px} \times 44\text{px}$ (or `h-11 px-4`).
 - **Input Text Minimum**: $16\text{px}$ font sizing (`text-base` class) to prevent iOS Safari auto-zooming.
 - **Form Columns**: Use vertical stacks (`grid-cols-1`) on screens $< 640\text{px}$ to avoid text wrapping.
-- **Scroll Safeties**: Add horizontal scroll wrappers (`w-full overflow-x-auto block scrollbar-none`) around tables, metrics, and navigation rails on mobile viewports.
+- **Scroll Safeties**: Add horizontal scroll wrappers (`w-full overflow-x-auto block scrollbar-none`) around wide tables, metrics, and dense tab lists on mobile viewports. Do not make mobile sidebar navigation horizontally scroll.
