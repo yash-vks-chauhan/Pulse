@@ -1,0 +1,26 @@
+external_id,name,email,phone,city,tags
+test-cust-1001,Aarav Mehta,aarav.mehta@example.com,+91 98765 43210,Mumbai,vip;coffee-lover;high-intent
+test-cust-1002,Saanvi Rao,saanvi.rao@example.com,+91 99887 76655,Bengaluru,new;newsletter;latte
+test-cust-1003,Vihaan Kapoor,vihaan.kapoor@example.com,+91 91234 56789,Delhi,repeat;premium;weekend-shopper
+test-cust-1004,Ananya Iyer,ananya.iyer@example.com,+91 90909 80808,Chennai,student;budget;coupon-user
+test-cust-1005,Reyansh Sharma,reyansh.sharma@example.com,+91 93456 78901,Pune,vip;espresso;early-access
+test-cust-1006,Ishita Nair,ishita.nair@example.com,+91 97654 32109,Kochi,new;organic;newsletter
+test-cust-1007,Kabir Singh,kabir.singh@example.com,+91 94567 89012,Hyderabad,repeat;cold-brew;app-user
+test-cust-1008,Meera Joshi,meera.joshi@example.com,+91 92345 67890,Ahmedabad,dormant;winback;discount
+test-cust-1009,Arjun Reddy,arjun.reddy@example.com,+91 93210 98765,Bengaluru,premium;gift-buyer;high-spend
+test-cust-1010,Nisha Patel,nisha.patel@example.com,+91 98701 23456,Surat,new;trial;newsletter
+test-cust-1011,Rohan Malhotra,rohan.malhotra@example.com,+91 90012 34567,Gurugram,vip;repeat;office
+test-cust-1012,Priya Menon,priya.menon@example.com,+91 95678 12340,Thiruvananthapuram,organic;filter-coffee;repeat
+test-cust-1013,Aditya Kulkarni,aditya.kulkarni@example.com,+91 94444 55555,Nagpur,student;coupon-user;new
+test-cust-1014,Tara Banerjee,tara.banerjee@example.com,+91 93333 22222,Kolkata,premium;dark-roast;newsletter
+test-cust-1015,Dev Shah,dev.shah@example.com,+91 92222 11111,Vadodara,repeat;high-intent;app-user
+test-cust-1016,Aisha Khan,aisha.khan@example.com,+91 91111 22222,Lucknow,winback;dormant;coupon-user
+test-cust-1017,Neel Desai,neel.desai@example.com,+91 95555 44444,Jaipur,new;espresso;gift-buyer
+test-cust-1018,Kavya Krishnan,kavya.krishnan@example.com,+91 98888 77777,Coimbatore,vip;premium;repeat
+test-cust-1019,Manav Bhatia,manav.bhatia@example.com,+91 97777 66666,Noida,office;bulk-buyer;newsletter
+test-cust-1020,Riya Chatterjee,riya.chatterjee@example.com,+91 96666 55555,Kolkata,cold-brew;app-user;repeat
+test-cust-1021,Om Prakash,,+91 95555 66666,Patna,new;walk-in
+test-cust-1022,Leah Fernandez,leah.fernandez@example.com,,Goa,premium;weekend-shopper
+test-cust-1023,Harsh Agarwal,harsh.agarwal@example.com,+91 94444 33333,,repeat;high-spend
+test-cust-1024,Zoya Sheikh,zoya.sheikh@example.com,+91 93333 44444,Indore,
+test-cust-1025,Krish Verma,,,Jaipur,new;trial

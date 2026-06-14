@@ -8,6 +8,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
+import { DeliveryFunnel, funnelStages } from '../components/delivery-funnel';
 import { PulseLogo } from '../components/logo';
 import { Aurora } from '../components/motion/aurora';
 import { BlurText } from '../components/motion/blur-text';
@@ -25,40 +26,6 @@ import { Button } from '../components/ui/button';
  */
 
 /* ------------------------------- hero visual ------------------------------ */
-
-function FunnelRow({
-  label,
-  value,
-  pct,
-  color,
-  delay,
-}: {
-  label: string;
-  value: string;
-  pct: number;
-  color: string;
-  delay: number;
-}) {
-  return (
-    <div>
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium tabular-nums">
-          {value} <span className="text-muted-foreground">({pct}%)</span>
-        </span>
-      </div>
-      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={`funnel-fill h-full rounded-full ${color}`}
-          style={{
-            ['--bar-w' as string]: `${pct}%`,
-            ['--bar-delay' as string]: `${delay}ms`,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
 function HeroPreview() {
   return (
@@ -91,12 +58,12 @@ function HeroPreview() {
               refreshing every 3s
             </span>
           </div>
-          <div className="mt-5 space-y-3.5">
-            <FunnelRow label="Sent" value="2,847" pct={100} color="bg-foreground/70" delay={100} />
-            <FunnelRow label="Delivered" value="2,591" pct={91} color="bg-accent" delay={250} />
-            <FunnelRow label="Opened / read" value="1,822" pct={64} color="bg-violet-500" delay={400} />
-            <FunnelRow label="Clicked" value="627" pct={22} color="bg-success" delay={550} />
-          </div>
+          <DeliveryFunnel
+            className="mt-5"
+            stages={funnelStages({ sent: 2847, delivered: 2591, engaged: 1822, clicked: 627 })}
+            total={2847}
+            variant="reveal"
+          />
           <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
             <span className="rounded-md bg-destructive/10 px-2 py-1 font-medium text-destructive">
               whatsapp ✗ stalled

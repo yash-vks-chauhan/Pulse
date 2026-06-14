@@ -236,6 +236,75 @@ export class CampaignsService {
       failover: { escalations, rescued },
     };
   }
+
+  /**
+   * Cumulative delivery timeline for the "delivery over time" chart: distinct
+   * communications that reached each stage (delivered / engaged / clicked),
+   * bucketed across the campaign's active event window. Every event type is
+   * unique per communication (the idempotency key dedups callbacks), so the
+   * cumulative distinct counts line up with the funnel's stage totals.
+   */
+  async timeline(id: string): Promise<{ total: number; buckets: TimelineBucket[] }> {
+    await this.get(id);
+
+    const [total, events] = await Promise.all([
+      this.prisma.communication.count({ where: { campaignId: id } }),
+      this.prisma.commEvent.findMany({
+        where: {
+          communication: { campaignId: id },
+          eventType: { in: ['delivered', 'opened', 'read', 'clicked'] },
+        },
+        select: { eventTs: true, eventType: true, communicationId: true },
+        orderBy: { eventTs: 'asc' },
+      }),
+    ]);
+
+    const firstEvent = events[0];
+    const lastEvent = events[events.length - 1];
+    if (!firstEvent || !lastEvent) {
+      return { total, buckets: [] };
+    }
+
+    const BUCKETS = 32;
+    const start = firstEvent.eventTs.getTime();
+    const end = lastEvent.eventTs.getTime();
+    const span = Math.max(end - start, 1);
+    const step = span / BUCKETS;
+
+    const delivered = new Set<string>();
+    const engaged = new Set<string>();
+    const clicked = new Set<string>();
+
+    const buckets: TimelineBucket[] = [];
+    let cursor = 0;
+    for (let i = 1; i <= BUCKETS; i += 1) {
+      const edge = start + step * i;
+      while (cursor < events.length) {
+        const event = events[cursor];
+        if (!event || event.eventTs.getTime() > edge) break;
+        if (event.eventType === 'delivered') delivered.add(event.communicationId);
+        else if (event.eventType === 'opened' || event.eventType === 'read')
+          engaged.add(event.communicationId);
+        else if (event.eventType === 'clicked') clicked.add(event.communicationId);
+        cursor += 1;
+      }
+      buckets.push({
+        t: new Date(Math.round(edge)).toISOString(),
+        delivered: delivered.size,
+        engaged: engaged.size,
+        clicked: clicked.size,
+      });
+    }
+
+    return { total, buckets };
+  }
+}
+
+export interface TimelineBucket {
+  t: string;
+  delivered: number;
+  engaged: number;
+  clicked: number;
 }
 
 function renderTemplate(template: string, customer: { name: string; city: string | null }): string {

@@ -1,34 +1,38 @@
 import {
-  Activity,
   ArrowRight,
-  ArrowUpRight,
-  Database,
-  FlaskConical,
-  GitBranch,
+  CheckCheck,
+  CheckCircle2,
+  PenLine,
+  Send,
+  ShieldCheck,
+  ShoppingBag,
   Sparkles,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
 import Link from 'next/link';
+import { DeliveryFunnel, funnelStages } from '../components/delivery-funnel';
 import { BlurText } from '../components/motion/blur-text';
 import { CountUp } from '../components/motion/count-up';
-import { NumberTicker } from '../components/motion/number-ticker';
 import { Reveal } from '../components/motion/reveal';
-import { SpotlightLink } from '../components/motion/spotlight-link';
 import { SplitText } from '../components/motion/split-text';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { WorkspaceExplorer } from '../components/workspace-explorer';
 import { cn } from '../lib/utils';
 
 /**
  * Workspace overview — the first screen a signed-in reviewer sees, rendered
  * inside the sidebar shell. Not a second landing page: it orients you in the
  * (seeded) demo workspace, shows live system signal, and routes you into the
- * real screens. Composition over uniformity — an editorial masthead, a live
- * stat strip, and an asymmetric bento of real-screen previews — so it reads as
- * a designed command center rather than a stack of identical cards.
+ * real screens.
  *
- * The only live data dependency is the two service health checks below; the
- * showcased figures mirror the seeded demo workspace and stay in lockstep with
- * the public landing page.
+ * Composition over uniformity — an editorial masthead, a hairline signal band,
+ * an interactive workspace explorer (the centrepiece), and a drawn campaign-flow
+ * diagram — so it reads as a designed command center, never a stack of
+ * look-alike cards. The only live data dependency is the two service health
+ * checks; the showcased figures mirror the seeded demo workspace and stay in
+ * lockstep with the public landing page.
  */
 
 const CRM_API_URL = process.env.CRM_API_URL ?? 'http://localhost:4000';
@@ -48,132 +52,95 @@ async function checkHealth(url: string): Promise<Health> {
   }
 }
 
-/* -------------------------------- masthead -------------------------------- */
-
 /** Compact, real-data service pill for the masthead status cluster. */
 function ServicePill({ name, status }: { name: string; status: Health }) {
   const up = status === 'up';
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-2.5 py-1 text-xs font-medium">
-      <span
-        className={cn(
-          'h-1.5 w-1.5 rounded-full',
-          up ? 'bg-success' : 'bg-destructive',
-        )}
-      />
+      <span className={cn('h-1.5 w-1.5 rounded-full', up ? 'bg-success' : 'bg-destructive')} />
       <span className="text-muted-foreground">{name}</span>
-      <span className={up ? 'text-success' : 'text-destructive'}>
-        {up ? 'up' : 'down'}
-      </span>
+      <span className={up ? 'text-success' : 'text-destructive'}>{up ? 'up' : 'down'}</span>
     </span>
   );
 }
 
-/* ------------------------------ live stat strip --------------------------- */
-
-const STATS: Array<{ value: number; suffix?: string; label: string }> = [
-  { value: 5000, label: 'customers seeded' },
-  { value: 23723, label: 'orders ingested' },
-  { value: 98, suffix: '%', label: 'delivery rate' },
-  { value: 214, label: 'rescued by failover' },
-];
-
-/* --------------------------------- bento ---------------------------------- */
+/* ---------------------------- campaign console ---------------------------- */
 
 /**
- * Animated funnel bar — the count rolls up (CountUp) and the bar grows from 0
- * when its Reveal parent scrolls into view, so the tile reads as a live chart.
+ * The featured live campaign — a framed console that fills the masthead's right
+ * half so the hero reads as a product, not a narrow text column. Mirrors the
+ * landing's hero figures; bars grow on mount via the shared DeliveryFunnel.
  */
-function FunnelBar({
-  label,
-  value,
-  pct,
-  color,
-  delay,
-}: {
-  label: string;
-  value: number;
-  pct: number;
-  color: string;
-  delay: number;
-}) {
+function CampaignConsole() {
   return (
-    <div>
-      <div className="flex items-baseline justify-between text-[11px]">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium tabular-nums">
-          <CountUp value={value} />{' '}
-          <span className="text-muted-foreground">({pct}%)</span>
+    <div className="frame-ring overflow-hidden rounded-xl bg-card">
+      <div className="flex items-center gap-2.5 border-b bg-muted/40 px-4 py-2.5">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background">
+          <Send className="h-3.5 w-3.5" />
+        </span>
+        <span className="text-sm font-medium">Monsoon Malabar</span>
+        <Badge variant="accent" className="gap-1.5 px-2 py-0.5 text-[10px]">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-accent opacity-75 [animation:ping-soft_1.6s_ease-out_infinite]" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
+          </span>
+          Running
+        </Badge>
+        <span className="ml-auto hidden text-[11px] text-muted-foreground sm:block">
+          refreshing every 3s
         </span>
       </div>
-      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn('funnel-fill h-full rounded-full', color)}
-          style={{ ['--bar-w' as string]: `${pct}%`, ['--bar-delay' as string]: `${delay}ms` }}
+      <div className="p-5">
+        <DeliveryFunnel
+          stages={funnelStages({ sent: 2847, delivered: 2591, engaged: 1822, clicked: 627 })}
+          total={2847}
+          variant="mount"
         />
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-md bg-destructive/10 px-2 py-1 font-medium text-destructive">
+            whatsapp ✗ stalled
+          </span>
+          <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="rounded-md bg-success/10 px-2 py-1 font-medium text-success">
+            sms ✓ delivered
+          </span>
+          <span className="text-muted-foreground">214 rescued by failover</span>
+        </div>
       </div>
     </div>
   );
 }
 
+/* ------------------------------- signal band ------------------------------ */
+
 /**
- * Supporting bento tile — a link to a real screen with an icon chip, caption,
- * and a miniature of what's inside. The whole tile is the link; the arrow and
- * border animate on hover. `accent` paints the chip violet for AI surfaces.
+ * Asymmetric signal: one hero proof metric (delivery rate, with an honest
+ * meter) anchors three supporting counts — editorial hierarchy over a uniform
+ * four-up grid.
  */
-function Tile({
-  href,
-  icon: Icon,
-  title,
-  caption,
-  children,
-  className,
-  accent = false,
-  delay = 0,
-}: {
-  href: string;
+const SUPPORTING: Array<{
+  value: number;
+  label: string;
+  sub: string;
   icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { value: 5000, label: 'customers seeded', sub: 'PII encrypted at rest', icon: Users },
+  { value: 23723, label: 'orders ingested', sub: 'append-only event log', icon: ShoppingBag },
+  { value: 214, label: 'rescued by failover', sub: 'primary channel hard-failed', icon: ShieldCheck },
+];
+
+/* -------------------------------- the loop -------------------------------- */
+
+const STEPS: Array<{
+  step: string;
   title: string;
-  caption: string;
-  children: React.ReactNode;
-  className?: string;
-  accent?: boolean;
-  delay?: number;
-}) {
-  return (
-    <Reveal className={cn('h-full', className)} delay={delay}>
-      <SpotlightLink
-        href={href}
-        className="group flex h-full flex-col rounded-xl border bg-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
-      >
-        <div className="flex items-center gap-2.5">
-          <span
-            className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-md transition-colors',
-              accent
-                ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
-                : 'bg-muted text-foreground/80 group-hover:bg-foreground group-hover:text-background',
-            )}
-          >
-            <Icon className="h-4 w-4" />
-          </span>
-          <h3 className="font-medium">{title}</h3>
-          <ArrowUpRight className="ml-auto h-4 w-4 text-muted-foreground/40 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
-        </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{caption}</p>
-        <div className="mt-4 flex-1">{children}</div>
-      </SpotlightLink>
-    </Reveal>
-  );
-}
-
-/* ------------------------------- the loop --------------------------------- */
-
-const STEPS = [
-  { step: '01', title: 'Describe', body: 'Plain language in — Pulse compiles it into validated, editable rules.' },
-  { step: '02', title: 'Approve', body: 'See the live audience count before anything sends. You always approve.' },
-  { step: '03', title: 'Execute', body: 'Queued dispatch with throttles, retries, and automatic channel failover.' },
-  { step: '04', title: 'Learn', body: 'Attributed revenue and an AI-written next action — one click to follow up.' },
+  body: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { step: '01', title: 'Describe', body: 'Plain language in — Pulse compiles it into validated, editable rules.', icon: PenLine },
+  { step: '02', title: 'Approve', body: 'See the live audience count before anything sends. You always approve.', icon: CheckCheck },
+  { step: '03', title: 'Execute', body: 'Queued dispatch with throttles, retries, and automatic channel failover.', icon: Send },
+  { step: '04', title: 'Learn', body: 'Attributed revenue and an AI-written next action — one click to follow up.', icon: TrendingUp },
 ];
 
 /* --------------------------------- page ----------------------------------- */
@@ -207,193 +174,105 @@ export async function OverviewDashboard() {
           </div>
         </BlurText>
 
-        <h1 className="mt-6 max-w-3xl text-3xl font-semibold leading-[1.1] tracking-tight sm:text-4xl">
-          <SplitText text="Welcome to your" delay={120} />{' '}
-          <span
-            className="split-word font-editorial font-normal text-foreground/90"
-            style={{ ['--word-delay' as string]: '330ms' }}
-          >
-            workspace.
-          </span>
-        </h1>
-        <BlurText delay={500} className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Pre-seeded with 5,000 customers and a finished campaign, so every screen below is
-          live and explorable right now. Start in the Copilot, or jump straight to a campaign.
-        </BlurText>
+        <div className="mt-7 grid items-center gap-10 lg:mt-9 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
+          <div>
+            <h1 className="max-w-xl text-3xl font-semibold leading-[1.1] tracking-tight sm:text-4xl">
+              <SplitText text="Welcome to your" delay={120} />{' '}
+              <span
+                className="split-word font-editorial font-normal text-foreground/90"
+                style={{ ['--word-delay' as string]: '330ms' }}
+              >
+                workspace.
+              </span>
+            </h1>
+            <BlurText delay={500} className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Pre-seeded with 5,000 customers and a live campaign, so every screen here is real
+              and explorable. Hover the explorer to look inside, or jump straight in.
+            </BlurText>
 
-        <BlurText as="div" delay={650} className="mt-6 flex flex-wrap items-center gap-3">
-          <Button asChild>
-            <Link href="/copilot">
-              <Sparkles />
-              Open the Copilot
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/campaigns">
-              Browse campaigns
-              <ArrowRight />
-            </Link>
-          </Button>
-        </BlurText>
+            <BlurText as="div" delay={650} className="mt-6 flex flex-wrap items-center gap-3">
+              <Button asChild>
+                <Link href="/copilot">
+                  <Sparkles />
+                  Open the Copilot
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/campaigns">
+                  Browse campaigns
+                  <ArrowRight />
+                </Link>
+              </Button>
+            </BlurText>
+          </div>
+
+          <BlurText as="div" delay={780} className="hidden lg:block">
+            <CampaignConsole />
+          </BlurText>
+        </div>
       </section>
 
-      {/* Live stat strip --------------------------------------------------- */}
-      <Reveal>
-        <div className="grid grid-cols-2 divide-x divide-y rounded-xl border bg-card lg:grid-cols-4 lg:divide-y-0">
-          {STATS.map((stat) => (
-            <div key={stat.label} className="px-5 py-6">
-              <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
-                <CountUp value={stat.value} suffix={stat.suffix ?? ''} />
-              </p>
-              <p className="mt-1.5 text-xs text-muted-foreground">{stat.label}</p>
+      {/* Signal band ------------------------------------------------------- */}
+      <Reveal as="section">
+        <div className="flex items-baseline justify-between">
+          <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+            Workspace signal
+          </p>
+          <p className="hidden text-xs text-muted-foreground sm:block">
+            live figures from the seeded pipeline
+          </p>
+        </div>
+        <div className="mt-4 grid overflow-hidden rounded-xl border bg-card shadow-sm lg:grid-cols-[1.05fr_2fr]">
+          {/* hero proof metric — the resilience story, with an honest meter */}
+          <div className="border-b p-6 lg:border-b-0 lg:border-r lg:p-7">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="font-mono text-[11px] uppercase tracking-[0.1em]">Delivery rate</span>
             </div>
-          ))}
+            <p className="mt-3 text-5xl font-semibold tracking-tight tabular-nums">
+              <CountUp value={98} suffix="%" />
+            </p>
+            <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="funnel-fill h-full rounded-full bg-success"
+                style={{ ['--bar-w' as string]: '98%', ['--bar-delay' as string]: '200ms' }}
+              />
+            </div>
+            <p className="mt-3 max-w-sm text-xs leading-relaxed text-muted-foreground">
+              Held under 6% vendor failure — retries, the dead-letter queue, and channel
+              failover absorb the rest.
+            </p>
+          </div>
+          {/* three supporting counts */}
+          <div className="grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {SUPPORTING.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="p-5 lg:p-6">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <p className="mt-3 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+                    <CountUp value={stat.value} />
+                  </p>
+                  <p className="mt-1 text-sm font-medium">{stat.label}</p>
+                  <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{stat.sub}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Reveal>
 
-      {/* Bento showcase ---------------------------------------------------- */}
+      {/* Workspace explorer ------------------------------------------------ */}
       <section>
         <Reveal>
           <h2 className="text-lg font-semibold tracking-tight">Explore the workspace</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Each tile is a real screen — pre-seeded and ready. Open one to see it run.
+            Six real screens, all pre-seeded. Hover to look inside, then open the one you want.
           </p>
         </Reveal>
-
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Copilot — the flagship, wide hero tile */}
-          <Reveal className="h-full sm:col-span-2" delay={60}>
-            <SpotlightLink
-              href="/copilot"
-              className="group flex h-full flex-col rounded-xl border bg-card p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                  <Sparkles className="h-[18px] w-[18px]" />
-                </span>
-                <h3 className="text-base font-medium">Copilot</h3>
-                <Badge variant="ai" className="px-2 text-[10px]">
-                  language in, audience out
-                </Badge>
-                <ArrowUpRight className="ml-auto h-4 w-4 text-muted-foreground/40 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
-              </div>
-              <div className="mt-5 rounded-lg border bg-background p-4">
-                <p className="text-sm italic leading-relaxed text-muted-foreground">
-                  “shoppers who bought 2+ times but nothing in 60 days, spend above ₹2,000”
-                </p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {[
-                    'order count ≥ 2',
-                    'last order > 60 days',
-                    'total spend > ₹2,000',
-                  ].map((rule, index) => (
-                    <span
-                      key={rule}
-                      className="rise-in rounded-md bg-muted px-2 py-1 text-[11px]"
-                      style={{ ['--rise-delay' as string]: `${300 + index * 90}ms` }}
-                    >
-                      {rule}
-                    </span>
-                  ))}
-                  <span
-                    className="rise-in rounded-md bg-accent/10 px-2 py-1 text-[11px] font-medium text-accent"
-                    style={{ ['--rise-delay' as string]: '570ms' }}
-                  >
-                    match ALL
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-medium tabular-nums">
-                  <NumberTicker value={1284} /> customers match
-                </p>
-              </div>
-              <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                The AI compiles your words into editable rules with a live match count — it
-                proposes, you approve. Nothing opaque, nothing sent without you.
-              </p>
-            </SpotlightLink>
-          </Reveal>
-
-          {/* Live delivery funnel */}
-          <Tile
-            href="/campaigns"
-            icon={Activity}
-            title="Live delivery funnel"
-            caption="Refreshes every 3s from the append-only event log."
-            delay={120}
-          >
-            <div className="flex h-full flex-col justify-center space-y-2.5 rounded-lg border bg-background p-4">
-              <FunnelBar label="Sent" value={2847} pct={100} color="bg-foreground/70" delay={100} />
-              <FunnelBar label="Delivered" value={2591} pct={91} color="bg-accent" delay={220} />
-              <FunnelBar label="Opened" value={1822} pct={64} color="bg-violet-500" delay={340} />
-              <FunnelBar label="Clicked" value={627} pct={22} color="bg-success" delay={460} />
-            </div>
-          </Tile>
-
-          {/* Channel failover */}
-          <Tile
-            href="/campaigns"
-            icon={GitBranch}
-            title="Automatic failover"
-            caption="A channel hard-fails and Pulse escalates to the next."
-            delay={180}
-          >
-            <div className="h-full rounded-lg border bg-background p-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-md bg-destructive/10 px-2 py-1 font-medium text-destructive">
-                  whatsapp ✗ failed
-                </span>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="rounded-md bg-success/10 px-2 py-1 font-medium text-success">
-                  sms ✓ delivered
-                </span>
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">214 customers rescued</span> via SMS
-                after their primary channel failed.
-              </p>
-            </div>
-          </Tile>
-
-          {/* Chaos panel */}
-          <Tile
-            href="/simulator"
-            icon={FlaskConical}
-            title="Chaos panel"
-            caption="Crank vendor failures mid-campaign and watch it absorb them."
-            delay={240}
-          >
-            <div className="h-full rounded-lg border bg-background p-4 text-[11px] text-muted-foreground">
-              <div className="flex justify-between">
-                <span>WhatsApp failure rate</span>
-                <span className="font-semibold text-foreground tabular-nums">40%</span>
-              </div>
-              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full w-[40%] rounded-full bg-warning" />
-              </div>
-              <p className="mt-3 leading-relaxed">
-                Retries, the dead-letter queue, and failover keep reach high — duplicates and
-                out-of-order callbacks included.
-              </p>
-            </div>
-          </Tile>
-
-          {/* Bring your own data */}
-          <Tile
-            href="/data"
-            icon={Database}
-            title="Bring your own data"
-            caption="Upload CSV or POST to the ingestion API — PII encrypted at rest."
-            delay={300}
-          >
-            <div className="h-full rounded-lg border bg-background p-4 font-mono text-[11px] leading-relaxed text-muted-foreground">
-              <p>
-                <span className="text-success">POST</span> /api/ingest/customers
-              </p>
-              <p className="mt-1 text-foreground/80">→ {'{'} &quot;upserted&quot;: 1 {'}'}</p>
-              <p className="mt-2 text-muted-foreground/70">idempotent · batched · validated</p>
-            </div>
-          </Tile>
-        </div>
+        <Reveal delay={80} className="mt-5">
+          <WorkspaceExplorer />
+        </Reveal>
       </section>
 
       {/* The loop ---------------------------------------------------------- */}
@@ -405,14 +284,37 @@ export async function OverviewDashboard() {
           </p>
         </Reveal>
         <Reveal delay={80} className="mt-5">
-          <div className="grid grid-cols-2 divide-x divide-y rounded-xl border bg-card lg:grid-cols-4 lg:divide-y-0">
-            {STEPS.map((item) => (
-              <div key={item.step} className="p-5">
-                <span className="font-mono text-xs text-muted-foreground">{item.step}</span>
-                <h4 className="mt-2 font-medium">{item.title}</h4>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{item.body}</p>
+          <div className="rounded-xl border bg-card p-6 shadow-sm sm:p-8 lg:p-10">
+            <div className="relative">
+              {/* connector track — threads the nodes; the accent draws on reveal,
+                  trailing off to the right like the campaign moving downstream */}
+              <div aria-hidden className="absolute inset-x-0 top-5 hidden lg:block">
+                <div className="h-px w-full bg-border" />
+                <div className="flow-line absolute inset-x-0 top-0 h-px origin-left bg-gradient-to-r from-foreground/60 via-foreground/30 to-transparent" />
               </div>
-            ))}
+              <ol className="grid grid-cols-1 gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-4">
+                {STEPS.map((item, index) => {
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.step} className="relative">
+                      <div
+                        className="flow-node relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background ring-4 ring-card"
+                        style={{ ['--node-delay' as string]: `${index * 160}ms` }}
+                      >
+                        <Icon className="h-[18px] w-[18px]" />
+                      </div>
+                      <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+                        Step {item.step}
+                      </p>
+                      <h4 className="mt-1 font-medium">{item.title}</h4>
+                      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                        {item.body}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
           </div>
         </Reveal>
       </section>

@@ -43,4 +43,9 @@ export class CampaignsController {
   stats(@Param('id', ParseUUIDPipe) id: string) {
     return this.campaignsService.stats(id);
   }
+
+  @Get(':id/timeline')
+  timeline(@Param('id', ParseUUIDPipe) id: string) {
+    return this.campaignsService.timeline(id);
+  }
 }
