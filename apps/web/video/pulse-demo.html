@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pulse — product demo</title>
+<link rel="stylesheet" href="./styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0a0a; }
+  #root { position: fixed; inset: 0; }
+</style>
+</head>
+<body>
+<div id="root" data-video-root data-screen-label="00:00"></div>
+
+<script type="text/babel" src="animations.jsx" data-presets="react"></script>
+<script type="text/babel" src="helpers.jsx" data-presets="react"></script>
+<script type="text/babel" src="scenes-a.jsx" data-presets="react"></script>
+<script type="text/babel" src="scenes-b.jsx" data-presets="react"></script>
+<script type="text/babel" data-presets="react">
+(function () {
+const { Stage, Sprite, useTime } = window;
+
+// Updates data-screen-label on the video root every whole second (for comments).
+function TimeLabel() {
+  const t = useTime();
+  React.useEffect(() => {
+    const s = Math.floor(t);
+    const label = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    const root = document.querySelector('[data-video-root]');
+    if (root && root.dataset.screenLabel !== label) root.dataset.screenLabel = label;
+  }, [Math.floor(t)]);
+  return null;
+}
+
+const A = window.PulseScenesA, B = window.PulseScenesB;
+
+function Film() {
+  return (
+    <React.Fragment>
+      <TimeLabel />
+      <Sprite start={0}  end={7}>  <A.ColdOpen /></Sprite>
+      <Sprite start={7}  end={15}> <A.TheShift /></Sprite>
+      <Sprite start={15} end={31}> <A.CopilotDescribe /></Sprite>
+      <Sprite start={31} end={43}> <A.ApproveDraft /></Sprite>
+      <Sprite start={43} end={60}> <B.Pipeline /></Sprite>
+      <Sprite start={60} end={72}> <B.Insights /></Sprite>
+      <Sprite start={72} end={80}> <B.Close /></Sprite>
+    </React.Fragment>
+  );
+}
+
+function App() {
+  return (
+    <Stage width={1920} height={1080} duration={80} background="#ffffff" persistKey="pulse-demo">
+      <Film />
+    </Stage>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+// ── Soft ambient pad (very low volume) — starts on first user gesture, 'm' mutes.
+(function ambient() {
+  let ctx, master, started = false, muted = false;
+  function start() {
+    if (started) return; started = true;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain(); master.gain.value = 0.045; master.connect(ctx.destination);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520; lp.connect(master);
+      [110, 164.81, 220].forEach((f, i) => {
+        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.value = i === 2 ? 0.25 : 0.5;
+        o.connect(g); g.connect(lp); o.start();
+      });
+      // slow breathing LFO on the master
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07;
+      const lg = ctx.createGain(); lg.gain.value = 0.02;
+      lfo.connect(lg); lg.connect(master.gain); lfo.start();
+    } catch (e) { /* no audio */ }
+  }
+  window.addEventListener('pointerdown', start, { once: false });
+  window.addEventListener('keydown', (e) => {
+    start();
+    if (e.key === 'm' && master) { muted = !muted; master.gain.value = muted ? 0 : 0.045; }
+  });
+})();
+})();
+</script>
+</body>
+</html>
